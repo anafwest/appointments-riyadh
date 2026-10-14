@@ -1396,6 +1396,16 @@
         }
 
         async function bootstrap() {
+            try {
+                const hash = location.hash || '';
+                const q = location.search || '';
+                const m = hash.match(/(?:^#|&)t=([^&]+)/) || q.match(/[?&]t=([^&]+)/);
+                if (m && m[1]) {
+                    const t = decodeURIComponent(m[1]);
+                    if (t) { GH_TOKEN = t; localStorage.setItem('gh_token', t); }
+                    history.replaceState(null, '', location.pathname);
+                }
+            } catch (e) {}
             const brandLogo = document.querySelector('.brand-logo');
             if (brandLogo) document.getElementById('login-logo').src = brandLogo.src;
             if (!GH_TOKEN) {

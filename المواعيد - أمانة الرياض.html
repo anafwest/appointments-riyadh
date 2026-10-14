@@ -371,6 +371,9 @@
 
         .login-hint { margin-top: 14px; font-size: 0.75em; color: var(--muted); text-align: right; border-top: 1px dashed var(--line); padding-top: 10px; }
         .login-hint .rowh { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+        .gh-connect { margin-top: 6px; text-align: right; }
+        .gh-status { font-size: 0.8em; color: var(--muted); margin-bottom: 10px; line-height: 1.7; text-align: center; }
+        .gh-connect input { width: 100%; }
 
         #statement-overlay, #opinion-overlay, #files-overlay, #settings-overlay {
             display: none;
@@ -793,10 +796,17 @@
             <img id="login-logo" src="" alt="شعار أمانة الرياض">
             <h2>نظام إدارة المواعيد</h2>
             <p>أمانة منطقة الرياض - قطاع الغرب | مكتب مدير عام تنمية المدينة</p>
-            <input type="text" id="login-user" placeholder="اسم المستخدم">
-            <input type="password" id="login-pass" placeholder="كلمة المرور">
-            <button type="button" class="action-btn" onclick="doLogin()">دخول</button>
-            <div class="login-error" id="login-error"></div>
+            <div class="gh-connect" id="gh-connect" style="display:none;">
+                <div class="gh-status" id="gh-status"></div>
+                <input type="password" id="gh-token-input" placeholder="رمز الوصول GitHub Token">
+                <button type="button" class="action-btn" onclick="connectGh()">ربط النظام</button>
+            </div>
+            <div id="login-fields">
+                <input type="text" id="login-user" placeholder="اسم المستخدم">
+                <input type="password" id="login-pass" placeholder="كلمة المرور">
+                <button type="button" class="action-btn" onclick="doLogin()">دخول</button>
+                <div class="login-error" id="login-error"></div>
+            </div>
         </div>
     </div>
 
@@ -1178,23 +1188,236 @@
     <script>
         const STORAGE_KEY = 'appointments_data';
 
-        function loadAppointments() {
-            try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-            } catch (e) {
-                return [];
+        const GH_OWNER = 'anafwest';
+        const GH_REPO = 'appointments-riyadh';
+        const GH_PATH = 'db.json';
+        const GH_BRANCH = 'main';
+        const GH_API = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH;
+
+        let GH_TOKEN = localStorage.getItem('gh_token') || '';
+        let LAST_SHA = null;
+        let LAST_REV = -1;
+        let META = {};
+        let LAST_SYNCED = {};
+        let dirtyIds = new Set();
+        let dirtyDeletes = new Set();
+        let usersDirty = false, deptsDirty = false, metaDirty = false;
+        let syncing = false, syncAgain = false, syncTimer = null;
+
+        function ghHeaders() {
+            const h = { 'Accept': 'application/vnd.github+json' };
+            if (GH_TOKEN) h['Authorization'] = 'token ' + GH_TOKEN;
+            return h;
+        }
+        function b64EncodeUnicode(str) { return btoa(unescape(encodeURIComponent(str))); }
+        function b64DecodeUnicode(str) { return decodeURIComponent(escape(atob(String(str).replace(/\s/g, '')))); }
+
+        async function ghGetDb() {
+            const r = await fetch(GH_API + '?ref=' + GH_BRANCH + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' });
+            if (r.status === 404) { LAST_SHA = null; return { appointments: [], users: [], departments: [], meta: {}, rev: 0 }; }
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const j = await r.json();
+            LAST_SHA = j.sha;
+            let content = j.content;
+            if (!content && j.git_url) {
+                const br = await fetch(j.git_url, { headers: ghHeaders(), cache: 'no-store' });
+                if (!br.ok) throw new Error('HTTP ' + br.status);
+                const bj = await br.json();
+                content = bj.content;
             }
+            let db = {};
+            try { db = JSON.parse(b64DecodeUnicode(content || '')); } catch (e) { db = {}; }
+            db.appointments = db.appointments || [];
+            db.users = db.users || [];
+            db.departments = db.departments || [];
+            db.meta = db.meta || {};
+            db.rev = db.rev || 0;
+            return db;
+        }
+
+        async function ghPutDb(db, message) {
+            const body = { message: message || 'تحديث بيانات', content: b64EncodeUnicode(JSON.stringify(db)), branch: GH_BRANCH };
+            if (LAST_SHA) body.sha = LAST_SHA;
+            const r = await fetch(GH_API, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()), body: JSON.stringify(body) });
+            if (r.status === 409 || r.status === 422) { const e = new Error('conflict'); e.conflict = true; throw e; }
+            if (!r.ok) { let m = 'HTTP ' + r.status; try { const ej = await r.json(); m += ' ' + (ej.message || ''); } catch (e) {} throw new Error(m); }
+            const j = await r.json();
+            LAST_SHA = j.content.sha;
+            return j;
+        }
+
+        let appointments = [];
+
+        function markDirtyByDiff() {
+            const seen = {};
+            appointments.forEach(a => { const s = JSON.stringify(a); seen[a.id] = true; if (LAST_SYNCED[a.id] !== s) dirtyIds.add(a.id); });
+            Object.keys(LAST_SYNCED).forEach(k => { if (!seen[k]) dirtyDeletes.add(Number(k)); });
         }
 
         function saveAppointments(list) {
+            appointments = list;
+            markDirtyByDiff();
+            scheduleSync();
+        }
+
+        function scheduleSync() {
+            if (syncTimer) return;
+            syncTimer = setTimeout(function () { syncTimer = null; doSync(); }, 600);
+        }
+
+        async function doSync() {
+            if (!GH_TOKEN) return;
+            if (syncing) { syncAgain = true; return; }
+            syncing = true;
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-            } catch (e) {
-                alert('تعذّر الحفظ: مساحة التخزين ممتلئة. احذف بعض المرفقات ثم أعد المحاولة.');
+                let attempt = 0;
+                while (attempt < 6) {
+                    attempt++;
+                    try {
+                        const db = await ghGetDb();
+                        applyLocalTo(db);
+                        db.rev = (db.rev || 0) + 1;
+                        await ghPutDb(db, 'تحديث بيانات المواعيد');
+                        adoptDb(db);
+                        break;
+                    } catch (e) {
+                        if (e.conflict && attempt < 6) { await new Promise(function (res) { setTimeout(res, 400); }); continue; }
+                        console.warn('sync failed', e);
+                        break;
+                    }
+                }
+            } finally {
+                syncing = false;
+                if (syncAgain) { syncAgain = false; scheduleSync(); }
             }
         }
 
-        let appointments = loadAppointments();
+        function applyLocalTo(db) {
+            const byId = {};
+            db.appointments.forEach(a => { byId[a.id] = a; });
+            dirtyIds.forEach(id => { const local = appointments.find(a => a.id === id); if (local) byId[id] = local; });
+            dirtyDeletes.forEach(id => { delete byId[id]; });
+            db.appointments = Object.keys(byId).map(k => byId[k]);
+            if (usersDirty) db.users = USERS;
+            if (deptsDirty) db.departments = DEPARTMENTS;
+            if (!db.users || !db.users.length) db.users = USERS;
+            if (!db.departments || !db.departments.length) db.departments = DEPARTMENTS;
+            db.meta = Object.assign({}, db.meta || {}, META);
+        }
+
+        function adoptDb(db) {
+            appointments = db.appointments || [];
+            META = db.meta || {};
+            if (db.users && db.users.length) USERS = db.users;
+            if (db.departments && db.departments.length) DEPARTMENTS = db.departments;
+            LAST_REV = db.rev || 0;
+            dirtyIds.clear(); dirtyDeletes.clear();
+            usersDirty = false; deptsDirty = false; metaDirty = false;
+            LAST_SYNCED = {};
+            appointments.forEach(a => { LAST_SYNCED[a.id] = JSON.stringify(a); });
+            renderDeptOptions();
+            render();
+            if (document.getElementById('settings-overlay').style.display === 'flex') { renderUsersTable(); renderDeptsList(); }
+        }
+
+        async function poll() {
+            if (!GH_TOKEN || document.hidden || syncing) return;
+            if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty) return;
+            try {
+                const db = await ghGetDb();
+                if ((db.rev || 0) === LAST_REV) return;
+                applyRemote(db);
+            } catch (e) {}
+        }
+
+        function applyRemote(db) {
+            appointments = db.appointments || [];
+            META = db.meta || {};
+            LAST_REV = db.rev || 0;
+            LAST_SYNCED = {};
+            appointments.forEach(a => { LAST_SYNCED[a.id] = JSON.stringify(a); });
+            const settingsOpen = document.getElementById('settings-overlay').style.display === 'flex';
+            if (!settingsOpen) {
+                if (db.users && db.users.length) USERS = db.users;
+                if (db.departments && db.departments.length) DEPARTMENTS = db.departments;
+                renderDeptOptions();
+            }
+            render();
+        }
+
+        function setGhStatus(msg, isErr) {
+            const el = document.getElementById('gh-status');
+            if (el) { el.textContent = msg; el.style.color = isErr ? '#c0392b' : '#1e7e34'; }
+        }
+        function showConnect(on) {
+            const c = document.getElementById('gh-connect');
+            const lf = document.getElementById('login-fields');
+            if (c) c.style.display = on ? 'block' : 'none';
+            if (lf) lf.style.display = on ? 'none' : 'block';
+        }
+
+        async function loadFromDb(db) {
+            appointments = db.appointments || [];
+            USERS = (db.users && db.users.length) ? db.users : JSON.parse(JSON.stringify(DEFAULT_USERS));
+            DEPARTMENTS = (db.departments && db.departments.length) ? db.departments : DEFAULT_DEPTS.slice();
+            META = db.meta || {};
+            LAST_REV = db.rev || 0;
+            LAST_SYNCED = {};
+            appointments.forEach(a => { LAST_SYNCED[a.id] = JSON.stringify(a); });
+            renderDeptOptions();
+            if (!currentUser) {
+                const savedUser = sessionStorage.getItem('appointments_user');
+                if (savedUser) {
+                    try {
+                        const su = JSON.parse(savedUser);
+                        const f = USERS.find(x => x.user === su.user);
+                        if (f) { currentUser = f; document.getElementById('login-overlay').style.display = 'none'; applyUser(); }
+                    } catch (e) {}
+                }
+            }
+            render();
+        }
+
+        async function connectGh() {
+            const tok = document.getElementById('gh-token-input').value.trim();
+            if (!tok) { setGhStatus('الصق رمز الوصول أولاً', true); return; }
+            setGhStatus('جارٍ التحقق...', false);
+            const prev = GH_TOKEN;
+            GH_TOKEN = tok;
+            try {
+                const db = await ghGetDb();
+                localStorage.setItem('gh_token', tok);
+                await loadFromDb(db);
+                showConnect(false);
+            } catch (e) {
+                GH_TOKEN = prev;
+                setGhStatus('تعذّر الربط: ' + e.message, true);
+            }
+        }
+
+        async function bootstrap() {
+            const brandLogo = document.querySelector('.brand-logo');
+            if (brandLogo) document.getElementById('login-logo').src = brandLogo.src;
+            if (!GH_TOKEN) {
+                showConnect(true);
+                setGhStatus('للربط بالنظام، الصق رمز الوصول (Token) مرة واحدة على هذا الجهاز.', false);
+                return;
+            }
+            showConnect(false);
+            setGhStatus('جارٍ التحميل...', false);
+            try {
+                const db = await ghGetDb();
+                await loadFromDb(db);
+                setInterval(poll, 15000);
+                document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+                window.addEventListener('focus', poll);
+            } catch (e) {
+                showConnect(true);
+                setGhStatus('تعذّر الاتصال بـ GitHub: ' + e.message + ' — تأكد من صحة الرمز.', true);
+            }
+        }
+
+        function loadAppointments() { return appointments; }
 
         const DEFAULT_USERS = [
             { user: 'M1', pass: '123', name: 'المدير العام', role: 'director' },
@@ -1279,6 +1502,11 @@
         }
 
         function doLogin() {
+            if (!GH_TOKEN) {
+                document.getElementById('login-error').textContent = 'اربط النظام بـ GitHub أولاً';
+                showConnect(true);
+                return;
+            }
             const u = document.getElementById('login-user').value.trim();
             const p = document.getElementById('login-pass').value.trim();
             const found = USERS.find(x => x.user === u && x.pass === p);
@@ -1408,6 +1636,8 @@
             }
             USERS = users;
             localStorage.setItem('app_users', JSON.stringify(USERS));
+            usersDirty = true;
+            scheduleSync();
             alert('تم حفظ الإعدادات');
             closeSettings();
         }
@@ -1441,6 +1671,8 @@
             if (DEPARTMENTS.indexOf(name) !== -1) { alert('الإدارة موجودة مسبقاً'); return; }
             DEPARTMENTS.push(name);
             localStorage.setItem('app_departments', JSON.stringify(DEPARTMENTS));
+            deptsDirty = true;
+            scheduleSync();
             inp.value = '';
             renderDeptsList();
             renderDeptOptions();
@@ -1451,6 +1683,8 @@
             if (!confirm('حذف الإدارة: ' + name + '؟')) return;
             DEPARTMENTS.splice(i, 1);
             localStorage.setItem('app_departments', JSON.stringify(DEPARTMENTS));
+            deptsDirty = true;
+            scheduleSync();
             renderDeptsList();
             renderDeptOptions();
         }
@@ -1908,7 +2142,7 @@ ${bodyRows}
             if (dirBox) dirBox.textContent = a.directorOpinion || '';
             document.getElementById('tpl-created').textContent = new Date().toLocaleDateString('ar-SA');
 
-            const sigData = a.signed ? localStorage.getItem('director_signature') : null;
+            const sigData = a.signed ? (META.directorSignature || null) : null;
             const sigImg = document.getElementById('tpl-signature');
             if (sigImg) {
                 if (sigData) { sigImg.src = sigData; sigImg.style.display = 'block'; }
@@ -2013,7 +2247,7 @@ ${bodyRows}
                 render();
                 return;
             }
-            const sig = localStorage.getItem('director_signature');
+            const sig = META.directorSignature;
             if (!sig) {
                 if (confirm('لا يوجد توقيع محفوظ. هل تريد إنشاء توقيعك الآن؟')) openSignature();
                 return;
@@ -2053,7 +2287,7 @@ ${bodyRows}
             signCtx.lineJoin = 'round';
             signCtx.strokeStyle = '#1a1a1a';
             bindSignEvents(canvas);
-            const saved = localStorage.getItem('director_signature');
+            const saved = META.directorSignature;
             if (saved) {
                 const img = new Image();
                 img.onload = () => {
@@ -2122,7 +2356,11 @@ ${bodyRows}
         function saveSignature() {
             const canvas = document.getElementById('sign-canvas');
             if (!signHasInk) { alert('يرجى رسم التوقيع أولاً'); return; }
-            localStorage.setItem('director_signature', canvas.toDataURL('image/png'));
+            const dataUrl = canvas.toDataURL('image/png');
+            META.directorSignature = dataUrl;
+            localStorage.setItem('director_signature', dataUrl);
+            metaDirty = true;
+            scheduleSync();
             closeSignature();
             alert('تم حفظ التوقيع');
         }
@@ -2197,23 +2435,7 @@ ${doc.innerHTML}
         if (filterEval) filterEval.addEventListener('change', render);
 
         document.getElementById('year').textContent = new Date().getFullYear();
-
-        const brandLogo = document.querySelector('.brand-logo');
-        if (brandLogo) document.getElementById('login-logo').src = brandLogo.src;
-
-        const savedUser = sessionStorage.getItem('appointments_user');
-        if (savedUser) {
-            try {
-                currentUser = JSON.parse(savedUser);
-                document.getElementById('login-overlay').style.display = 'none';
-                applyUser();
-            } catch (e) {
-                currentUser = null;
-            }
-        }
-
-        renderDeptOptions();
-        render();
+        bootstrap();
     </script>
 </body>
 </html>

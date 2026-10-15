@@ -434,11 +434,16 @@
         .files-empty { color: var(--muted); text-align: center; padding: 14px; }
 
         body:not(.role-admin) .col-stages { display: none !important; }
-        .admin-dept-bar { display: none; }
-        body.role-admin .admin-dept-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
-        .admin-dept-chip { background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--text); padding: 6px 12px; border-radius: 20px; font-size: 0.9em; cursor: pointer; }
-        .admin-dept-chip.active { background: linear-gradient(45deg, var(--green-400), var(--green-500)); color: #fff; border-color: transparent; }
-        .admin-dept-chip:hover { border-color: var(--green-400); }
+        .admin-dept-cards { display: none; }
+        body.role-admin .admin-dept-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
+        .admin-dept-card { display: flex; align-items: center; gap: 12px; background: rgba(9, 166, 108, 0.08); border: 1px solid var(--line); border-radius: 14px; padding: 16px; cursor: pointer; transition: .18s; }
+        .admin-dept-card:hover { border-color: var(--green-400); transform: translateY(-2px); }
+        .admin-dept-card.active { background: linear-gradient(45deg, var(--green-400), var(--green-500)); border-color: transparent; }
+        .admin-dept-card.active .admin-dept-name, .admin-dept-card.active .admin-dept-count { color: #fff; }
+        .admin-dept-ico { font-size: 1.7em; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 12px; background: rgba(255,255,255,0.1); flex: 0 0 auto; }
+        .admin-dept-info { display: flex; flex-direction: column; min-width: 0; }
+        .admin-dept-name { font-weight: 600; color: var(--text); font-size: 0.95em; line-height: 1.3; }
+        .admin-dept-count { color: var(--green-400); font-size: 1.4em; font-weight: 700; }
         .chip { display: inline-block; font-size: 0.72em; padding: 2px 7px; border-radius: 20px; margin: 1px; white-space: nowrap; }
         .chip-ok { background: #e6f4ea; color: #1e7e34; }
         .chip-info { background: #e7f1ff; color: #1d4ed8; }
@@ -843,6 +848,8 @@
 
     <div class="stats-grid" id="stats-grid"></div>
 
+    <div class="admin-dept-cards" id="admin-dept-cards"></div>
+
     <div class="grid">
         <div class="card" id="form-card">
             <h3 id="form-title"> إضافة موعد جديد</h3>
@@ -949,8 +956,6 @@
                 <button type="button" id="sign-btn-main" class="action-btn" onclick="openSignature()" style="display:none;">✍️ توقيع المدير العام</button>
                 <button type="button" class="btn-ghost" onclick="exportExcel()">⬇️ تصدير Excel</button>
             </div>
-
-            <div class="admin-dept-bar" id="admin-dept-bar"></div>
 
             <div class="table-wrap">
                 <table>
@@ -1547,8 +1552,8 @@
             if (currentUser.role === 'admin') {
                 renderAdminDeptBar();
             } else {
-                const bar = document.getElementById('admin-dept-bar');
-                if (bar) bar.innerHTML = '';
+                const cards = document.getElementById('admin-dept-cards');
+                if (cards) cards.innerHTML = '';
             }
         }
 
@@ -2040,16 +2045,36 @@
             updateStats();
         }
 
+        function deptIcon(name) {
+            const n = normStr(name);
+            if (n.indexOf('تجار') !== -1 || n.indexOf('استثمار') !== -1) return '🏬';
+            if (n.indexOf('بناء') !== -1 || n.indexOf('هندس') !== -1) return '🏗️';
+            if (n.indexOf('اراضي') !== -1 || n.indexOf('أراضي') !== -1) return '🗺️';
+            if (n.indexOf('مال') !== -1) return '💰';
+            if (n.indexOf('خدم') !== -1) return '🛠️';
+            return '🏢';
+        }
+
         function renderAdminDeptBar() {
-            const bar = document.getElementById('admin-dept-bar');
-            if (!bar) return;
-            const depts = Array.from(new Set((appointments || []).map(a => a.department).filter(Boolean)));
+            const cards = document.getElementById('admin-dept-cards');
+            if (!cards) return;
+            const counts = {};
+            (appointments || []).forEach(a => { if (a.department) { const k = normStr(a.department); counts[k] = (counts[k] || 0) + 1; } });
+            const depts = Array.from(new Set((DEPARTMENTS || []).concat((appointments || []).map(a => a.department)).filter(Boolean)));
             depts.sort();
-            let html = '<button type="button" class="admin-dept-chip' + (!adminDeptFilter ? ' active' : '') + '" onclick="setAdminDept(null)">الكل</button>';
+            let html = '<div class="admin-dept-card' + (!adminDeptFilter ? ' active' : '') + '" onclick="setAdminDept(null)">' +
+                '<div class="admin-dept-ico">📋</div>' +
+                '<div class="admin-dept-info"><span class="admin-dept-name">كل الإدارات</span>' +
+                '<span class="admin-dept-count">' + (appointments || []).length + '</span></div></div>';
             depts.forEach(d => {
-                html += '<button type="button" class="admin-dept-chip' + (adminDeptFilter && normStr(adminDeptFilter) === normStr(d) ? ' active' : '') + '" onclick="setAdminDept(\'' + d.replace(/'/g, "\\'") + '\')">' + escapeHtml(d) + '</button>';
+                const cnt = counts[normStr(d)] || 0;
+                const active = adminDeptFilter && normStr(adminDeptFilter) === normStr(d);
+                html += '<div class="admin-dept-card' + (active ? ' active' : '') + '" onclick="setAdminDept(\'' + d.replace(/'/g, "\\'") + '\')">' +
+                    '<div class="admin-dept-ico">' + deptIcon(d) + '</div>' +
+                    '<div class="admin-dept-info"><span class="admin-dept-name">' + escapeHtml(d) + '</span>' +
+                    '<span class="admin-dept-count">' + cnt + '</span></div></div>';
             });
-            bar.innerHTML = html;
+            cards.innerHTML = html;
         }
 
         function setAdminDept(d) {

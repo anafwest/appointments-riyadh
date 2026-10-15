@@ -134,6 +134,9 @@
 
         .stat-number { font-size: 2.2em; font-weight: 700; color: var(--green-400); }
         .stat-label { color: var(--muted); margin-top: 5px; }
+        .stat-sub { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 0.72em; color: var(--muted); }
+        .stat-sub-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; line-height: 1.9; }
+        .stat-sub-num { color: var(--green-400); font-weight: 700; }
 
         .grid {
             display: grid;
@@ -848,6 +851,7 @@
         <div class="stat-box">
             <div class="stat-number" id="stat-wip">0</div>
             <div class="stat-label">تحت الإجراء</div>
+            <div class="stat-sub" id="stat-wip-depts" style="display:none;"></div>
         </div>
         <div class="stat-box">
             <div class="stat-number" id="stat-rate">0%</div>
@@ -2105,6 +2109,24 @@
             document.getElementById('stat-done').textContent = done;
             document.getElementById('stat-wip').textContent = wip;
             document.getElementById('stat-rate').textContent = rate + '%';
+
+            const wipDepts = document.getElementById('stat-wip-depts');
+            if (wipDepts) {
+                if (currentUser && currentUser.role === 'director') {
+                    const depts = [
+                        'إدارة رخص البناء',
+                        'إدارة شؤون الأراضي',
+                        'إدارة الرخص التجارية والاستثمارية'
+                    ];
+                    const under = list.filter(a => !isDone(a));
+                    wipDepts.innerHTML = depts.map(d =>
+                        `<div class="stat-sub-row"><span>${escapeHtml(d)}</span><span class="stat-sub-num">${under.filter(a => normStr(a.department) === normStr(d)).length}</span></div>`
+                    ).join('');
+                    wipDepts.style.display = 'block';
+                } else {
+                    wipDepts.style.display = 'none';
+                }
+            }
         }
 
         function exportExcel() {

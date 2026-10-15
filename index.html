@@ -917,7 +917,7 @@
                     </div>
                 </div>
 
-                <div class="field" id="status-field" style="display:none;">
+                <div class="field">
                     <label for="status">حالة الطلب</label>
                     <select id="status">
                         <option value="">-- اختر حالة الطلب --</option>
@@ -1926,8 +1926,6 @@
         function resetForm() {
             form.reset();
             document.getElementById('edit-id').value = '';
-            const sf = document.getElementById('status-field');
-            if (sf) sf.style.display = 'none';
             document.getElementById('form-title').textContent = ' إضافة موعد جديد';
             document.getElementById('submit-btn').textContent = 'حفظ الموعد';
             document.getElementById('cancel-btn').style.display = 'none';
@@ -1959,8 +1957,6 @@
             document.getElementById('directorOpinion').value = a.directorOpinion || '';
             document.querySelector(`input[name="attachments"][value="${a.attachments}"]`).checked = true;
             document.getElementById('status').value = a.status || '';
-            const sf = document.getElementById('status-field');
-            if (sf) sf.style.display = '';
 
             document.getElementById('form-title').textContent = '✏️ تعديل الموعد';
             document.getElementById('submit-btn').textContent = 'تحديث الموعد';

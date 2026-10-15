@@ -628,8 +628,10 @@
         }
 
         .tpl-files-full { display: none; }
-        .tpl-file-item { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 296mm; padding: 10mm; box-sizing: border-box; }
-        .tpl-file-item img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .tpl-file-item { display: flex; flex-direction: column; width: 100%; box-sizing: border-box; }
+        .tpl-file-head { display: flex; align-items: center; gap: 16px; border-bottom: 3px double #006A46; padding-bottom: 10px; }
+        .tpl-file-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .tpl-file-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
         .tpl-header {
             display: flex;
@@ -772,7 +774,7 @@
             }
             #template-doc {
                 width: 210mm !important;
-                height: 296mm !important;
+                height: 290mm !important;
                 max-width: none !important;
                 margin: 0 !important;
                 border-radius: 0 !important;
@@ -803,16 +805,24 @@
                 break-inside: avoid !important;
                 page-break-inside: avoid !important;
                 width: 210mm !important;
-                height: 296mm !important;
+                height: 290mm !important;
                 box-sizing: border-box !important;
-                padding: 10mm !important;
+                padding: 9mm 12mm !important;
                 margin: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+            }
+            body.print-files #tpl-files-full .tpl-file-head { padding-bottom: 8px !important; margin-bottom: 8px !important; }
+            body.print-files #tpl-files-full .tpl-file-head img { height: 54px !important; }
+            body.print-files #tpl-files-full .tpl-file-body {
+                flex: 1 1 auto !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
                 overflow: hidden !important;
             }
-            body.print-files #tpl-files-full .tpl-file-item img {
+            body.print-files #tpl-files-full .tpl-file-body img {
                 max-width: 100% !important;
                 max-height: 100% !important;
                 object-fit: contain !important;
@@ -2296,9 +2306,22 @@ ${bodyRows}
 
             const fullBox = document.getElementById('tpl-files-full');
             if (fullBox) {
+                const logoSrc = logo ? logo.src : '';
+                const num = a.number || '-';
                 const imgs = (a.files || []).filter(f => ((f.type || '').startsWith('image/')) || String(f.data || '').startsWith('data:image/'));
-                fullBox.innerHTML = imgs.map(f =>
-                    '<div class="tpl-file-item"><img src="' + f.data + '" alt="مرفق"></div>'
+                fullBox.innerHTML = imgs.map((f, i) =>
+                    '<div class="tpl-file-item">' +
+                        '<div class="tpl-file-head">' +
+                            (logoSrc ? '<img src="' + logoSrc + '" alt="شعار أمانة الرياض">' : '') +
+                            '<div class="tpl-head-text">' +
+                                '<div class="tpl-org">أمانة منطقة الرياض</div>' +
+                                '<div class="tpl-dept">قطاع الأمانة - غرب الرياض</div>' +
+                                '<div class="tpl-sys">مكتب مدير عام تنمية المدينة</div>' +
+                            '</div>' +
+                            '<div class="tpl-no">مرفق رقم: ' + (i + 1) + ' — طلب رقم: ' + num + '</div>' +
+                        '</div>' +
+                        '<div class="tpl-file-body"><img src="' + f.data + '" alt="مرفق"></div>' +
+                    '</div>'
                 ).join('');
             }
 

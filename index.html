@@ -2276,6 +2276,109 @@ ${bodyRows}
                 .replace(/\s+/g, '');
         }
 
+        let PDFJS_PROMISE = null;
+        let TPL_BUILD_PROMISE = null;
+        function loadPdfJs() {
+            if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+            if (PDFJS_PROMISE) return PDFJS_PROMISE;
+            PDFJS_PROMISE = new Promise(function (resolve, reject) {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                s.onload = function () {
+                    try {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    } catch (e) {}
+                    resolve(window.pdfjsLib);
+                };
+                s.onerror = function () { reject(new Error('pdfjs-load')); };
+                document.head.appendChild(s);
+            });
+            return PDFJS_PROMISE;
+        }
+
+        function dataUrlToUint8(dataUrl) {
+            const base64 = String(dataUrl).split(',')[1] || '';
+            const bin = atob(base64);
+            const arr = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return arr;
+        }
+
+        async function renderPdfPages(dataUrl) {
+            const pdfjsLib = await loadPdfJs();
+            const pdf = await pdfjsLib.getDocument({ data: dataUrlToUint8(dataUrl) }).promise;
+            const out = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: 2 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                out.push(canvas.toDataURL('image/jpeg', 0.85));
+            }
+            return out;
+        }
+
+        function tplFileHeadHtml(logoSrc, n, num) {
+            return '<div class="tpl-file-head">' +
+                (logoSrc ? '<img src="' + logoSrc + '" alt="شعار أمانة الرياض">' : '') +
+                '<div class="tpl-head-text">' +
+                    '<div class="tpl-org">أمانة منطقة الرياض</div>' +
+                    '<div class="tpl-dept">قطاع الأمانة - غرب الرياض</div>' +
+                    '<div class="tpl-sys">مكتب مدير عام تنمية المدينة</div>' +
+                '</div>' +
+                '<div class="tpl-no">مرفق رقم: ' + n + ' — طلب رقم: ' + num + '</div>' +
+            '</div>';
+        }
+
+        function tplFileItemHtml(headHtml, innerHtml) {
+            return '<div class="tpl-file-item">' + headHtml + '<div class="tpl-file-body">' + innerHtml + '</div></div>';
+        }
+
+        function tplDocPlaceholder(name) {
+            return '<div class="tpl-file-doc"><div class="tpl-file-ico">📎</div>' +
+                '<div class="tpl-file-docname">' + escapeHtml(name || 'مرفق') + '</div>' +
+                '<div class="tpl-file-docnote">تعذّر معاينة هذا النوع من الملفات داخل النموذج</div></div>';
+        }
+
+        async function buildTemplateFiles(a, logoSrc) {
+            const fullBox = document.getElementById('tpl-files-full');
+            if (!fullBox) return;
+            fullBox.innerHTML = '';
+            const num = a.number || '-';
+            const files = a.files || [];
+            let counter = 0;
+            for (let k = 0; k < files.length; k++) {
+                const f = files[k];
+                const type = String(f.type || '');
+                const data = String(f.data || '');
+                const isImg = type.startsWith('image/') || data.startsWith('data:image/');
+                const isPdf = !isImg && (type.indexOf('pdf') !== -1 || data.indexOf('data:application/pdf') === 0);
+                if (isPdf) {
+                    let pages = null;
+                    try { pages = await renderPdfPages(f.data); } catch (e) { pages = null; }
+                    if (pages && pages.length) {
+                        for (let p = 0; p < pages.length; p++) {
+                            counter++;
+                            const head = tplFileHeadHtml(logoSrc, counter, num);
+                            fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(head, '<img src="' + pages[p] + '" alt="مرفق">'));
+                        }
+                    } else {
+                        counter++;
+                        fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), tplDocPlaceholder(f.name)));
+                    }
+                    continue;
+                }
+                counter++;
+                const inner = isImg ? ('<img src="' + f.data + '" alt="مرفق">') : tplDocPlaceholder(f.name);
+                fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), inner));
+            }
+        }
+
         function openTemplate(id) {
             const a = appointments.find(x => x.id === id);
             if (!a) return;
@@ -2325,39 +2428,8 @@ ${bodyRows}
             }
 
             const fullBox = document.getElementById('tpl-files-full');
-            if (fullBox) {
-                const logoSrc = logo ? logo.src : '';
-                const num = a.number || '-';
-                const files = (a.files || []);
-                fullBox.innerHTML = files.map((f, i) => {
-                    const type = String(f.type || '');
-                    const data = String(f.data || '');
-                    const isImg = type.startsWith('image/') || data.startsWith('data:image/');
-                    const isPdf = type.indexOf('pdf') !== -1 || data.indexOf('data:application/pdf') === 0;
-                    let inner;
-                    if (isImg) {
-                        inner = '<img src="' + f.data + '" alt="مرفق">';
-                    } else if (isPdf) {
-                        inner = '<iframe class="tpl-file-frame" src="' + f.data + '" title="' + escapeHtml(f.name || 'مرفق') + '"></iframe>';
-                    } else {
-                        inner = '<div class="tpl-file-doc"><div class="tpl-file-ico">📎</div>' +
-                            '<div class="tpl-file-docname">' + escapeHtml(f.name || 'مرفق') + '</div>' +
-                            '<div class="tpl-file-docnote">تعذّر معاينة هذا النوع من الملفات داخل النموذج</div></div>';
-                    }
-                    return '<div class="tpl-file-item">' +
-                        '<div class="tpl-file-head">' +
-                            (logoSrc ? '<img src="' + logoSrc + '" alt="شعار أمانة الرياض">' : '') +
-                            '<div class="tpl-head-text">' +
-                                '<div class="tpl-org">أمانة منطقة الرياض</div>' +
-                                '<div class="tpl-dept">قطاع الأمانة - غرب الرياض</div>' +
-                                '<div class="tpl-sys">مكتب مدير عام تنمية المدينة</div>' +
-                            '</div>' +
-                            '<div class="tpl-no">مرفق رقم: ' + (i + 1) + ' — طلب رقم: ' + num + '</div>' +
-                        '</div>' +
-                        '<div class="tpl-file-body">' + inner + '</div>' +
-                    '</div>';
-                }).join('');
-            }
+            if (fullBox) { fullBox.innerHTML = ''; }
+            TPL_BUILD_PROMISE = buildTemplateFiles(a, logo ? logo.src : '');
 
             document.getElementById('template-overlay').style.display = 'flex';
         }
@@ -2524,7 +2596,10 @@ ${bodyRows}
             alert('تم حفظ التوقيع');
         }
 
-        function printTemplate(withFiles) {
+        async function printTemplate(withFiles) {
+            if (withFiles && TPL_BUILD_PROMISE) {
+                try { await TPL_BUILD_PROMISE; } catch (e) {}
+            }
             let wf = !!withFiles;
             if (wf) {
                 const box = document.getElementById('tpl-files-full');

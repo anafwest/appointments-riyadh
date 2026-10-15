@@ -740,16 +740,26 @@
             max-width: 170px;
             object-fit: contain;
             display: block;
-            margin: 0 auto 6px;
+            margin: 0 auto 2px;
         }
 
-        .tpl-sign div {
-            border-top: 1px solid #777;
-            padding-top: 6px;
-            color: #444;
-            width: 230px;
+        .tpl-sign-block {
+            width: 290px;
             text-align: center;
             font-size: 0.9em;
+        }
+
+        .tpl-sign-title {
+            color: #006A46;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .tpl-sign-name {
+            border-top: 1px solid #777;
+            padding-top: 6px;
+            color: #333;
+            font-weight: 700;
         }
 
         .tpl-foot {
@@ -1188,9 +1198,10 @@
             <div class="tpl-box" id="tpl-director"></div>
 
             <div class="tpl-sign">
-                <div>
+                <div class="tpl-sign-block">
+                    <div class="tpl-sign-title">مدير عام تنمية المدينة بقطاع غرب الرياض</div>
                     <img id="tpl-signature" src="" alt="" style="display:none;">
-                    توقيع المدير العام
+                    <div class="tpl-sign-name">م.معنى بن محمد بن فهد الفهد</div>
                 </div>
             </div>
 
@@ -2530,8 +2541,10 @@ ${bodyRows}
 
         #tpl-files-full { display: none; }
                 .tpl-sign { margin-top: 26px; }
-                .tpl-sign div { border-top: 1px solid #777; padding-top: 6px; color: #444; width: 230px; text-align: center; }
-                .tpl-sign img { height: 50px; max-width: 170px; object-fit: contain; display: block; margin: 0 auto 6px; }
+                .tpl-sign-block { width: 290px; text-align: center; }
+                .tpl-sign-title { color: #006A46; font-weight: 700; margin-bottom: 6px; }
+                .tpl-sign-name { border-top: 1px solid #777; padding-top: 6px; color: #333; font-weight: 700; }
+                .tpl-sign img { height: 50px; max-width: 170px; object-fit: contain; display: block; margin: 0 auto 2px; }
                 .tpl-foot { text-align: center; margin-top: 24px; font-size: 0.8em; color: #888; border-top: 1px solid #ccc; padding-top: 8px; }
             `;
 

@@ -786,7 +786,7 @@
             .tpl-foot { margin-top: 10px !important; padding-top: 6px !important; font-size: 0.72em !important; }
 
             #tpl-files { display: none !important; }
-            body.print-files #template-doc { height: auto !important; min-height: 296mm !important; overflow: visible !important; }
+            body.print-files #template-doc { display: block !important; height: auto !important; min-height: 296mm !important; overflow: visible !important; }
             body.print-files #tpl-files-full { display: block !important; page-break-before: always !important; }
             body.print-files #tpl-files-full .tpl-file-item { page-break-inside: avoid; margin-bottom: 12px; }
             body.print-files #tpl-files-full img { max-height: 130mm !important; max-width: 100% !important; }
@@ -917,7 +917,7 @@
                     </div>
                 </div>
 
-                <div class="field">
+                <div class="field" id="status-field" style="display:none;">
                     <label for="status">حالة الطلب</label>
                     <select id="status">
                         <option value="">-- اختر حالة الطلب --</option>
@@ -1926,6 +1926,8 @@
         function resetForm() {
             form.reset();
             document.getElementById('edit-id').value = '';
+            const sf = document.getElementById('status-field');
+            if (sf) sf.style.display = 'none';
             document.getElementById('form-title').textContent = ' إضافة موعد جديد';
             document.getElementById('submit-btn').textContent = 'حفظ الموعد';
             document.getElementById('cancel-btn').style.display = 'none';
@@ -1957,6 +1959,8 @@
             document.getElementById('directorOpinion').value = a.directorOpinion || '';
             document.querySelector(`input[name="attachments"][value="${a.attachments}"]`).checked = true;
             document.getElementById('status').value = a.status || '';
+            const sf = document.getElementById('status-field');
+            if (sf) sf.style.display = '';
 
             document.getElementById('form-title').textContent = '✏️ تعديل الموعد';
             document.getElementById('submit-btn').textContent = 'تحديث الموعد';
@@ -2049,8 +2053,11 @@
 
         function actionButtons(a) {
             if (currentUser && currentUser.role === 'dept') {
-                return `<button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
+                let deptBtns = '';
+                if (a.signed) deptBtns += `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
+                deptBtns += `<button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                         <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>`;
+                return deptBtns;
             }
             if (currentUser && currentUser.role === 'director') {
                 let btns = `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
@@ -2226,17 +2233,10 @@ ${bodyRows}
 
             const fullBox = document.getElementById('tpl-files-full');
             if (fullBox) {
-                const files = a.files || [];
-                if (files.length === 0) {
-                    fullBox.innerHTML = '';
-                } else {
-                    fullBox.innerHTML = '<div class="tpl-sec"><span>المرفقات</span> كامل مرفقات الموعد</div>' + files.map(f => {
-                        if ((f.type || '').startsWith('image/')) {
-                            return '<div class="tpl-file-item"><div style="font-size:0.8em;margin:8px 0 3px;">📄 ' + escapeHtml(f.name) + '</div><img src="' + f.data + '" alt="' + escapeHtml(f.name) + '"></div>';
-                        }
-                        return '<div class="tpl-file-item">📄 ' + escapeHtml(f.name) + '</div>';
-                    }).join('');
-                }
+                const imgs = (a.files || []).filter(f => (f.type || '').startsWith('image/'));
+                fullBox.innerHTML = imgs.map(f =>
+                    '<div class="tpl-file-item"><img src="' + f.data + '" alt="مرفق"></div>'
+                ).join('');
             }
 
             document.getElementById('template-overlay').style.display = 'flex';
@@ -2405,7 +2405,12 @@ ${bodyRows}
         }
 
         function printTemplate(withFiles) {
-            document.body.classList.toggle('print-files', !!withFiles);
+            let wf = !!withFiles;
+            if (wf) {
+                const box = document.getElementById('tpl-files-full');
+                wf = !!(box && box.querySelector('img'));
+            }
+            document.body.classList.toggle('print-files', wf);
             window.print();
         }
 

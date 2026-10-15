@@ -434,7 +434,7 @@
         .files-empty { color: var(--muted); text-align: center; padding: 14px; }
 
         body:not(.role-admin) .col-stages { display: none !important; }
-        body:not(.role-admin) .admin-dept-bar { display: none !important; }
+        .admin-dept-bar { display: none; }
         body.role-admin .admin-dept-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
         .admin-dept-chip { background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--text); padding: 6px 12px; border-radius: 20px; font-size: 0.9em; cursor: pointer; }
         .admin-dept-chip.active { background: linear-gradient(45deg, var(--green-400), var(--green-500)); color: #fff; border-color: transparent; }
@@ -950,6 +950,8 @@
                 <button type="button" class="btn-ghost" onclick="exportExcel()">⬇️ تصدير Excel</button>
             </div>
 
+            <div class="admin-dept-bar" id="admin-dept-bar"></div>
+
             <div class="table-wrap">
                 <table>
                     <thead>
@@ -970,8 +972,7 @@
                             <th class="col-stages">مراحل الطلب</th>
                             <th>الإجراءات</th>
                         </tr>
-                                <div class="admin-dept-bar" id="admin-dept-bar"></div>
-</thead>
+                    </thead>
                     <tbody id="table-body"></tbody>
                 </table>
             </div>
@@ -1450,7 +1451,7 @@
             if (currentUser && currentUser.role === 'dept') {
                 return appointments.filter(a => normStr(a.department) === normStr(currentUser.dept));
             }
-                        if (currentUser && currentUser.role === 'admin' && adminDeptFilter) {
+            if (currentUser && currentUser.role === 'admin' && adminDeptFilter) {
                 return appointments.filter(a => normStr(a.department) === normStr(adminDeptFilter));
             }
             return appointments;
@@ -1523,6 +1524,32 @@
         function doLogout() {
             sessionStorage.removeItem('appointments_user');
             location.reload();
+        }
+
+        function applyUser() {
+            document.getElementById('user-box').style.display = 'flex';
+            document.getElementById('user-name').textContent = currentUser.name;
+            const isDept = currentUser.role === 'dept';
+            const isDirector = currentUser.role === 'director';
+            const canAdd = !isDept && !isDirector;
+            document.body.classList.toggle('role-director', isDirector);
+            document.body.classList.toggle('role-admin', !isDept && !isDirector);
+            document.getElementById('sign-btn').style.display = isDirector ? 'inline-block' : 'none';
+            const setBtn = document.getElementById('settings-btn');
+            if (setBtn) setBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
+            const signMain = document.getElementById('sign-btn-main');
+            if (signMain) signMain.style.display = isDirector ? 'inline-block' : 'none';
+            const showForm = canAdd && currentTab !== 'done';
+            document.getElementById('form-card').style.display = showForm ? 'block' : 'none';
+            const grid = document.querySelector('.grid');
+            if (grid) grid.classList.toggle('no-form', !showForm);
+            adminDeptFilter = null;
+            if (currentUser.role === 'admin') {
+                renderAdminDeptBar();
+            } else {
+                const bar = document.getElementById('admin-dept-bar');
+                if (bar) bar.innerHTML = '';
+            }
         }
 
         function openSettings() {
@@ -1982,11 +2009,12 @@
 
         function render() {
             const list = getFiltered();
+            if (currentUser && currentUser.role === 'admin') renderAdminDeptBar();
 
             if (list.length === 0) {
-                if (currentUser && currentUser.role === 'admin') { renderAdminDeptBar(); } tableBody.innerHTML = '<tr><td colspan="15" class="empty">لا توجد مواعيد مطابقة</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="15" class="empty">لا توجد مواعيد مطابقة</td></tr>';
             } else {
-                if (currentUser && currentUser.role === 'admin') { renderAdminDeptBar(); } tableBody.innerHTML = list.map(a => `
+                tableBody.innerHTML = list.map(a => `
                     <tr>
                         <td>${escapeHtml(a.number)}</td>
                         <td>${escapeHtml(a.name)}</td>
@@ -2012,14 +2040,14 @@
             updateStats();
         }
 
-                function renderAdminDeptBar() {
+        function renderAdminDeptBar() {
             const bar = document.getElementById('admin-dept-bar');
             if (!bar) return;
             const depts = Array.from(new Set((appointments || []).map(a => a.department).filter(Boolean)));
             depts.sort();
-            let html = '<button type=\"button\" class=\"admin-dept-chip' + (!adminDeptFilter ? ' active' : '') + '\" onclick=\"setAdminDept(null)\">???</button>';
+            let html = '<button type="button" class="admin-dept-chip' + (!adminDeptFilter ? ' active' : '') + '" onclick="setAdminDept(null)">الكل</button>';
             depts.forEach(d => {
-                html += '<button type=\"button\" class=\"admin-dept-chip' + (adminDeptFilter && normStr(adminDeptFilter) === normStr(d) ? ' active' : '') + '\" onclick=\"setAdminDept(\\'' + d.replace(/'/g, \"\\'\") + '\\')\">' + escapeHtml(d) + '</button>';
+                html += '<button type="button" class="admin-dept-chip' + (adminDeptFilter && normStr(adminDeptFilter) === normStr(d) ? ' active' : '') + '" onclick="setAdminDept(\'' + d.replace(/'/g, "\\'") + '\')">' + escapeHtml(d) + '</button>';
             });
             bar.innerHTML = html;
         }
@@ -2027,7 +2055,9 @@
         function setAdminDept(d) {
             adminDeptFilter = d || null;
             render();
-        }function renderExtraActions(a) {
+        }
+
+        function renderExtraActions(a) {
             let extra = '';
             if (currentUser) {
                 if (currentUser.role === 'admin') {
@@ -2479,15 +2509,19 @@ ${doc.innerHTML}
 
         searchInput.addEventListener('input', render);
 
+        ['login-user', 'login-pass'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+            });
+        });
+        const ghTokInput = document.getElementById('gh-token-input');
+        if (ghTokInput) ghTokInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); connectGh(); }
+        });
+
         document.getElementById('year').textContent = new Date().getFullYear();
         bootstrap();
     </script>
 </body>
 </html>
-
-
-
-
-
-
-

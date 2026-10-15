@@ -434,6 +434,11 @@
         .files-empty { color: var(--muted); text-align: center; padding: 14px; }
 
         body:not(.role-admin) .col-stages { display: none !important; }
+        body:not(.role-admin) .admin-dept-bar { display: none !important; }
+        body.role-admin .admin-dept-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+        .admin-dept-chip { background: rgba(255,255,255,0.08); border: 1px solid var(--line); color: var(--text); padding: 6px 12px; border-radius: 20px; font-size: 0.9em; cursor: pointer; }
+        .admin-dept-chip.active { background: linear-gradient(45deg, var(--green-400), var(--green-500)); color: #fff; border-color: transparent; }
+        .admin-dept-chip:hover { border-color: var(--green-400); }
         .chip { display: inline-block; font-size: 0.72em; padding: 2px 7px; border-radius: 20px; margin: 1px; white-space: nowrap; }
         .chip-ok { background: #e6f4ea; color: #1e7e34; }
         .chip-info { background: #e7f1ff; color: #1d4ed8; }
@@ -965,7 +970,8 @@
                             <th class="col-stages">مراحل الطلب</th>
                             <th>الإجراءات</th>
                         </tr>
-                    </thead>
+                                <div class="admin-dept-bar" id="admin-dept-bar"></div>
+</thead>
                     <tbody id="table-body"></tbody>
                 </table>
             </div>
@@ -1438,10 +1444,14 @@
         let currentUser = null;
         let stEditingId = null;
         let currentTab = 'active';
+        let adminDeptFilter = null;
 
         function baseScoped() {
             if (currentUser && currentUser.role === 'dept') {
                 return appointments.filter(a => normStr(a.department) === normStr(currentUser.dept));
+            }
+                        if (currentUser && currentUser.role === 'admin' && adminDeptFilter) {
+                return appointments.filter(a => normStr(a.department) === normStr(adminDeptFilter));
             }
             return appointments;
         }
@@ -1513,25 +1523,6 @@
         function doLogout() {
             sessionStorage.removeItem('appointments_user');
             location.reload();
-        }
-
-        function applyUser() {
-            document.getElementById('user-box').style.display = 'flex';
-            document.getElementById('user-name').textContent = currentUser.name;
-            const isDept = currentUser.role === 'dept';
-            const isDirector = currentUser.role === 'director';
-            const canAdd = !isDept && !isDirector;
-            document.body.classList.toggle('role-director', isDirector);
-            document.body.classList.toggle('role-admin', !isDept && !isDirector);
-            document.getElementById('sign-btn').style.display = isDirector ? 'inline-block' : 'none';
-            const setBtn = document.getElementById('settings-btn');
-            if (setBtn) setBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
-            const signMain = document.getElementById('sign-btn-main');
-            if (signMain) signMain.style.display = isDirector ? 'inline-block' : 'none';
-            const showForm = canAdd && currentTab !== 'done';
-            document.getElementById('form-card').style.display = showForm ? 'block' : 'none';
-            const grid = document.querySelector('.grid');
-            if (grid) grid.classList.toggle('no-form', !showForm);
         }
 
         function openSettings() {
@@ -1993,9 +1984,9 @@
             const list = getFiltered();
 
             if (list.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="15" class="empty">لا توجد مواعيد مطابقة</td></tr>';
+                if (currentUser && currentUser.role === 'admin') { renderAdminDeptBar(); } tableBody.innerHTML = '<tr><td colspan="15" class="empty">لا توجد مواعيد مطابقة</td></tr>';
             } else {
-                tableBody.innerHTML = list.map(a => `
+                if (currentUser && currentUser.role === 'admin') { renderAdminDeptBar(); } tableBody.innerHTML = list.map(a => `
                     <tr>
                         <td>${escapeHtml(a.number)}</td>
                         <td>${escapeHtml(a.name)}</td>
@@ -2021,7 +2012,22 @@
             updateStats();
         }
 
-        function renderExtraActions(a) {
+                function renderAdminDeptBar() {
+            const bar = document.getElementById('admin-dept-bar');
+            if (!bar) return;
+            const depts = Array.from(new Set((appointments || []).map(a => a.department).filter(Boolean)));
+            depts.sort();
+            let html = '<button type=\"button\" class=\"admin-dept-chip' + (!adminDeptFilter ? ' active' : '') + '\" onclick=\"setAdminDept(null)\">???</button>';
+            depts.forEach(d => {
+                html += '<button type=\"button\" class=\"admin-dept-chip' + (adminDeptFilter && normStr(adminDeptFilter) === normStr(d) ? ' active' : '') + '\" onclick=\"setAdminDept(\\'' + d.replace(/'/g, \"\\'\") + '\\')\">' + escapeHtml(d) + '</button>';
+            });
+            bar.innerHTML = html;
+        }
+
+        function setAdminDept(d) {
+            adminDeptFilter = d || null;
+            render();
+        }function renderExtraActions(a) {
             let extra = '';
             if (currentUser) {
                 if (currentUser.role === 'admin') {
@@ -2478,3 +2484,10 @@ ${doc.innerHTML}
     </script>
 </body>
 </html>
+
+
+
+
+
+
+

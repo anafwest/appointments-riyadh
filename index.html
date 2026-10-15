@@ -632,6 +632,11 @@
         .tpl-file-head { display: flex; align-items: center; gap: 16px; border-bottom: 3px double #006A46; padding-bottom: 10px; }
         .tpl-file-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         .tpl-file-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .tpl-file-frame { width: 100%; height: 100%; border: 0; background: #fff; }
+        .tpl-file-doc { text-align: center; color: #555; }
+        .tpl-file-ico { font-size: 3.2em; line-height: 1; }
+        .tpl-file-docname { font-weight: 700; color: #006A46; margin-top: 10px; word-break: break-all; }
+        .tpl-file-docnote { color: #888; font-size: 0.85em; margin-top: 6px; }
 
         .tpl-header {
             display: flex;
@@ -836,6 +841,11 @@
                 max-height: 100% !important;
                 object-fit: contain !important;
             }
+            body.print-files #tpl-files-full .tpl-file-body .tpl-file-frame {
+                width: 100% !important;
+                height: 100% !important;
+                border: 0 !important;
+            }
         }
     </style>
 </head>
@@ -847,12 +857,12 @@
             <p>أمانة منطقة الرياض - قطاع الغرب | مكتب مدير عام تنمية المدينة</p>
             <div class="gh-connect" id="gh-connect" style="display:none;">
                 <div class="gh-status" id="gh-status"></div>
-                <input type="password" id="gh-token-input" placeholder="رمز الوصول GitHub Token">
+                <input type="password" id="gh-token-input" placeholder="رمز الوصول GitHub Token" onkeydown="if(event.key==='Enter'){event.preventDefault();connectGh();}">
                 <button type="button" class="action-btn" onclick="connectGh()">ربط النظام</button>
             </div>
             <div id="login-fields">
-                <input type="text" id="login-user" placeholder="اسم المستخدم">
-                <input type="password" id="login-pass" placeholder="كلمة المرور">
+                <input type="text" id="login-user" placeholder="اسم المستخدم" onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
+                <input type="password" id="login-pass" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
                 <button type="button" class="action-btn" onclick="doLogin()">دخول</button>
                 <div class="login-error" id="login-error"></div>
             </div>
@@ -2318,9 +2328,23 @@ ${bodyRows}
             if (fullBox) {
                 const logoSrc = logo ? logo.src : '';
                 const num = a.number || '-';
-                const imgs = (a.files || []).filter(f => ((f.type || '').startsWith('image/')) || String(f.data || '').startsWith('data:image/'));
-                fullBox.innerHTML = imgs.map((f, i) =>
-                    '<div class="tpl-file-item">' +
+                const files = (a.files || []);
+                fullBox.innerHTML = files.map((f, i) => {
+                    const type = String(f.type || '');
+                    const data = String(f.data || '');
+                    const isImg = type.startsWith('image/') || data.startsWith('data:image/');
+                    const isPdf = type.indexOf('pdf') !== -1 || data.indexOf('data:application/pdf') === 0;
+                    let inner;
+                    if (isImg) {
+                        inner = '<img src="' + f.data + '" alt="مرفق">';
+                    } else if (isPdf) {
+                        inner = '<iframe class="tpl-file-frame" src="' + f.data + '" title="' + escapeHtml(f.name || 'مرفق') + '"></iframe>';
+                    } else {
+                        inner = '<div class="tpl-file-doc"><div class="tpl-file-ico">📎</div>' +
+                            '<div class="tpl-file-docname">' + escapeHtml(f.name || 'مرفق') + '</div>' +
+                            '<div class="tpl-file-docnote">تعذّر معاينة هذا النوع من الملفات داخل النموذج</div></div>';
+                    }
+                    return '<div class="tpl-file-item">' +
                         '<div class="tpl-file-head">' +
                             (logoSrc ? '<img src="' + logoSrc + '" alt="شعار أمانة الرياض">' : '') +
                             '<div class="tpl-head-text">' +
@@ -2330,9 +2354,9 @@ ${bodyRows}
                             '</div>' +
                             '<div class="tpl-no">مرفق رقم: ' + (i + 1) + ' — طلب رقم: ' + num + '</div>' +
                         '</div>' +
-                        '<div class="tpl-file-body"><img src="' + f.data + '" alt="مرفق"></div>' +
-                    '</div>'
-                ).join('');
+                        '<div class="tpl-file-body">' + inner + '</div>' +
+                    '</div>';
+                }).join('');
             }
 
             document.getElementById('template-overlay').style.display = 'flex';
@@ -2504,7 +2528,7 @@ ${bodyRows}
             let wf = !!withFiles;
             if (wf) {
                 const box = document.getElementById('tpl-files-full');
-                wf = !!(box && box.querySelector('img'));
+                wf = !!(box && box.querySelector('.tpl-file-item'));
             }
             document.body.classList.toggle('print-files', wf);
             window.print();

@@ -428,6 +428,9 @@
         .files-list { max-height: 260px; overflow-y: auto; margin-top: 6px; }
         .file-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; }
         .file-row a { color: var(--mint); text-decoration: none; word-break: break-all; }
+        .file-row .file-name { flex: 1; word-break: break-all; }
+        .file-row .file-actions { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+        a.row-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
         .files-empty { color: var(--muted); text-align: center; padding: 14px; }
 
         body:not(.role-admin) .col-stages { display: none !important; }
@@ -1158,11 +1161,9 @@
             <table class="tpl-chk">
                 <tr>
                     <td><span class="tpl-cb" id="cb-attach0">☐</span>لا توجد مرفقات</td>
-                    <td><span class="tpl-cb" id="cb-attach1">☐</span>عدد المرفقات ونوعها: <span id="tpl-attachDetails"></span></td>
                     <td><span class="tpl-cb" id="cb-attach2">☐</span>يوجد مرفقات</td>
                 </tr>
             </table>
-            <div class="tpl-box" id="tpl-files" style="margin-top:8px;"></div>
 
             <div class="tpl-note">يُعبأ من قِبل الإدارة المختصة</div>
 
@@ -1798,10 +1799,37 @@
             const editable = canEditFiles();
             list.innerHTML = files.map((f, i) => `
                 <div class="file-row">
-                    <a href="${f.data}" download="${escapeHtml(f.name)}" target="_blank">📄 ${escapeHtml(f.name)}</a>
-                    ${editable ? `<button class="row-btn" title="حذف" onclick="removeFile(${i})">🗑️</button>` : ''}
+                    <span class="file-name">📄 ${escapeHtml(f.name)}</span>
+                    <span class="file-actions">
+                        <button class="row-btn" title="معاينة" onclick="previewFile(${i})">👁️</button>
+                        <a class="row-btn" title="تحميل" href="${f.data}" download="${escapeHtml(f.name)}">⬇️</a>
+                        ${editable ? `<button class="row-btn" title="حذف" onclick="removeFile(${i})">🗑️</button>` : ''}
+                    </span>
                 </div>
             `).join('');
+        }
+
+        function dataUrlToBlob(dataUrl) {
+            const parts = String(dataUrl).split(',');
+            const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+            const bin = atob(parts[1] || '');
+            const arr = new Uint8Array(bin.length);
+            for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+            return new Blob([arr], { type: mime });
+        }
+
+        function previewFile(i) {
+            const a = appointments.find(x => x.id === filesEditingId);
+            if (!a || !a.files || !a.files[i]) return;
+            const f = a.files[i];
+            try {
+                const url = URL.createObjectURL(dataUrlToBlob(f.data));
+                const w = window.open(url, '_blank');
+                if (!w) alert('يرجى السماح بالنوافذ المنبثقة للمعاينة');
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            } catch (e) {
+                alert('تعذّر معاينة هذا الملف، يمكنك تحميله.');
+            }
         }
 
         function addFiles() {
@@ -2170,24 +2198,7 @@ ${bodyRows}
 
             const hasAttach = a.attachments === 'يوجد مرفقات';
             document.getElementById('cb-attach0').textContent = hasAttach ? '☐' : '☑';
-            document.getElementById('cb-attach1').textContent = '☐';
             document.getElementById('cb-attach2').textContent = hasAttach ? '☑' : '☐';
-            document.getElementById('tpl-attachDetails').textContent = a.attachmentDetails || '';
-
-            const filesBox = document.getElementById('tpl-files');
-            if (filesBox) {
-                const files = a.files || [];
-                if (files.length === 0) {
-                    filesBox.innerHTML = '';
-                } else {
-                    filesBox.innerHTML = '<b>الملفات المرفقة:</b> ' + files.map(f => {
-                        if ((f.type || '').startsWith('image/')) {
-                            return `<div style="margin:6px 0;"><img src="${f.data}" alt="${escapeHtml(f.name)}" style="max-height:170px;max-width:100%;border:1px solid #94a3a0;"><div style="font-size:0.75em;">${escapeHtml(f.name)}</div></div>`;
-                        }
-                        return `<div>📄 ${escapeHtml(f.name)}</div>`;
-                    }).join('');
-                }
-            }
 
             if (!a.templateSaved) {
                 a.templateSaved = true;

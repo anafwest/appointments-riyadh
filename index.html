@@ -787,7 +787,7 @@
 
             #tpl-files { display: none !important; }
             body.print-files #template-doc { display: block !important; height: auto !important; min-height: 296mm !important; overflow: visible !important; }
-            body.print-files #tpl-files-full { display: block !important; page-break-before: always !important; }
+            body.print-files #tpl-files-full { display: block !important; break-before: page !important; page-break-before: always !important; }
             body.print-files #tpl-files-full .tpl-file-item { page-break-inside: avoid; margin-bottom: 12px; }
             body.print-files #tpl-files-full img { max-height: 130mm !important; max-width: 100% !important; }
         }
@@ -1157,9 +1157,9 @@
                 </div>
             </div>
 
-            <div class="tpl-files-full" id="tpl-files-full"></div>
-
             <div class="tpl-foot">صدر عن نظام إدارة المواعيد - أمانة منطقة الرياض | تاريخ إنشاء النموذج: <span id="tpl-created"></span></div>
+
+            <div class="tpl-files-full" id="tpl-files-full"></div>
         </div>
     </div>
 
@@ -2229,7 +2229,7 @@ ${bodyRows}
 
             const fullBox = document.getElementById('tpl-files-full');
             if (fullBox) {
-                const imgs = (a.files || []).filter(f => (f.type || '').startsWith('image/'));
+                const imgs = (a.files || []).filter(f => ((f.type || '').startsWith('image/')) || String(f.data || '').startsWith('data:image/'));
                 fullBox.innerHTML = imgs.map(f =>
                     '<div class="tpl-file-item"><img src="' + f.data + '" alt="مرفق"></div>'
                 ).join('');

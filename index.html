@@ -134,10 +134,6 @@
 
         .stat-number { font-size: 2.2em; font-weight: 700; color: var(--green-400); }
         .stat-label { color: var(--muted); margin-top: 5px; }
-        .stat-sub { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 0.82em; color: var(--muted); }
-        .stat-sub-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; line-height: 1.9; }
-        .stat-sub-num { color: var(--green-400); font-weight: 700; }
-        .stat-title { color: var(--muted); font-weight: 600; }
 
         .grid {
             display: grid;
@@ -2099,12 +2095,11 @@
                     'إدارة الرخص التجارية والاستثمارية'
                 ];
                 const under = list.filter(a => !isDone(a));
-                const rows = depts.map(d =>
-                    `<div class="stat-sub-row"><span>${escapeHtml(d)}</span><span class="stat-sub-num">${under.filter(a => normStr(a.department) === normStr(d)).length}</span></div>`
+                const deptBoxes = depts.map(d =>
+                    `<div class="stat-box"><div class="stat-number">${under.filter(a => normStr(a.department) === normStr(d)).length}</div><div class="stat-label">${escapeHtml(d)}</div></div>`
                 ).join('');
-                const boxDepts = `<div class="stat-box"><div class="stat-title">الإدارات تحت الإجراء</div><div class="stat-sub">${rows}</div></div>`;
                 const boxDone = `<div class="stat-box"><div class="stat-number">${done}</div><div class="stat-label">إجمالي المنجز</div></div>`;
-                grid.innerHTML = boxTotal + boxDepts + boxDone;
+                grid.innerHTML = boxTotal + deptBoxes + boxDone;
             } else {
                 const boxDone = `<div class="stat-box"><div class="stat-number">${done}</div><div class="stat-label">منجز</div></div>`;
                 const boxWip = `<div class="stat-box"><div class="stat-number">${wip}</div><div class="stat-label">تحت الإجراء</div></div>`;

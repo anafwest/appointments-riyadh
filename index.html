@@ -935,11 +935,6 @@
                 </div>
 
                 <div class="field">
-                    <label for="attachmentDetails">عدد المرفقات ونوعها</label>
-                    <input type="text" id="attachmentDetails" placeholder="مثال: مرفق واحد - صك الملكية">
-                </div>
-
-                <div class="field">
                     <label for="status">حالة الطلب</label>
                     <select id="status">
                         <option value="">-- اختر حالة الطلب --</option>
@@ -947,7 +942,6 @@
                             <option>تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب</option>
                             <option>تم الحل وانهاء الطلب</option>
                         </optgroup>
-                        <option>الطلب أحيل إلى الإدارة المختصة في القطاع</option>
                         <option>الطلب خارج اختصاص القطاع</option>
                     </select>
                 </div>
@@ -975,12 +969,12 @@
                             <th>الرقم</th>
                             <th>الاسم</th>
                             <th>رقم الهوية</th>
-                            <th>الموضوع</th>
-                            <th>تاريخ الموعد</th>
-                            <th>وقت الموعد</th>
                             <th>رقم الجوال</th>
+                            <th>الموضوع</th>
                             <th>نوع الموعد</th>
                             <th>الإدارة المختصة</th>
+                            <th>تاريخ الموعد</th>
+                            <th>وقت الموعد</th>
                             <th>الافادة</th>
                             <th class="col-dir-op">رأي المدير العام</th>
                             <th>المرفقات</th>
@@ -1123,18 +1117,18 @@
                 <tr>
                     <td class="lbl">رقم الطلب</td>
                     <td id="tpl-number"></td>
-                    <td class="lbl">رقم الهوية</td>
-                    <td id="tpl-idNumber"></td>
                     <td class="lbl">اسم صاحب الطلب</td>
                     <td id="tpl-name"></td>
+                    <td class="lbl">رقم الهوية</td>
+                    <td id="tpl-idNumber"></td>
                 </tr>
                 <tr>
-                    <td class="lbl">وقت الموعد</td>
-                    <td id="tpl-time"></td>
-                    <td class="lbl">اليوم والتاريخ</td>
-                    <td id="tpl-date"></td>
                     <td class="lbl">رقم الجوال</td>
                     <td id="tpl-phone"></td>
+                    <td class="lbl">اليوم والتاريخ</td>
+                    <td id="tpl-date"></td>
+                    <td class="lbl">وقت الموعد</td>
+                    <td id="tpl-time"></td>
                 </tr>
                 <tr>
                     <td class="lbl">موضوع الطلب</td>
@@ -1802,7 +1796,7 @@
                     <span class="file-name">📄 ${escapeHtml(f.name)}</span>
                     <span class="file-actions">
                         <button class="row-btn" title="معاينة" onclick="previewFile(${i})">👁️</button>
-                        <a class="row-btn" title="تحميل" href="${f.data}" download="${escapeHtml(f.name)}">⬇️</a>
+                        <button class="row-btn" title="طباعة" onclick="printFile(${i})">🖨️</button>
                         ${editable ? `<button class="row-btn" title="حذف" onclick="removeFile(${i})">🗑️</button>` : ''}
                     </span>
                 </div>
@@ -1823,13 +1817,44 @@
             if (!a || !a.files || !a.files[i]) return;
             const f = a.files[i];
             try {
-                const url = URL.createObjectURL(dataUrlToBlob(f.data));
+                const blob = dataUrlToBlob(f.data);
+                const url = URL.createObjectURL(blob);
                 const w = window.open(url, '_blank');
                 if (!w) alert('يرجى السماح بالنوافذ المنبثقة للمعاينة');
                 setTimeout(() => URL.revokeObjectURL(url), 60000);
             } catch (e) {
-                alert('تعذّر معاينة هذا الملف، يمكنك تحميله.');
+                alert('تعذّر معاينة هذا الملف.');
             }
+        }
+
+        function printFile(i) {
+            const a = appointments.find(x => x.id === filesEditingId);
+            if (!a || !a.files || !a.files[i]) return;
+            const f = a.files[i];
+            if ((f.type || '').startsWith('image/')) {
+                printImage(f);
+            } else {
+                printGeneric(f);
+            }
+        }
+
+        function printImage(f) {
+            const blob = dataUrlToBlob(f.data);
+            const url = URL.createObjectURL(blob);
+            const win = window.open('', '_blank');
+            if (!win) { alert('يرجى السماح بالنوافذ المنبثقة للمعاينة والطباعة'); return; }
+            win.document.write('<html><head><title>' + escapeHtml(f.name) + '</title></head><body style="margin:0;text-align:center;"><img src="' + url + '" style="max-width:95vw;max-height:95vh;"></body></html>');
+            win.document.close();
+            win.focus();
+            win.onload = () => { win.print(); setTimeout(() => URL.revokeObjectURL(url), 10000); };
+        }
+
+        function printGeneric(f) {
+            const blob = dataUrlToBlob(f.data);
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url, '_blank');
+            if (!win) alert('يرجى السماح بالنوافذ المنبثقة للطباعة');
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
         }
 
         function addFiles() {
@@ -1877,7 +1902,6 @@
         const form = document.getElementById('appointment-form');
         const tableBody = document.getElementById('table-body');
         const searchInput = document.getElementById('search');
-        const filterEval = document.getElementById('filter-eval');
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -1897,8 +1921,6 @@
                 statement: document.getElementById('statement').value.trim(),
                 directorOpinion: document.getElementById('directorOpinion').value.trim(),
                 attachments: document.querySelector('input[name="attachments"]:checked').value,
-                attachmentDetails: document.getElementById('attachmentDetails').value.trim(),
-                evaluation: '',
                 status: document.getElementById('status').value
             };
 
@@ -1951,8 +1973,6 @@
             document.getElementById('statement').value = a.statement;
             document.getElementById('directorOpinion').value = a.directorOpinion || '';
             document.querySelector(`input[name="attachments"][value="${a.attachments}"]`).checked = true;
-            document.getElementById('attachmentDetails').value = a.attachmentDetails || '';
-            document.querySelector(`input[name="evaluation"][value="${a.evaluation}"]`).checked = true;
             document.getElementById('status').value = a.status || '';
 
             document.getElementById('form-title').textContent = '✏️ تعديل الموعد';
@@ -1976,15 +1996,13 @@
 
         function getFiltered() {
             const q = searchInput.value.trim().toLowerCase();
-            const ev = filterEval ? filterEval.value : '';
             return scoped().filter(a => {
                 const matchQ = !q ||
                     a.number.toLowerCase().includes(q) ||
                     a.name.toLowerCase().includes(q) ||
                     a.subject.toLowerCase().includes(q) ||
                     (a.date || '').includes(q);
-                const matchEv = !ev || a.evaluation === ev;
-                return matchQ && matchEv;
+                return matchQ;
             });
         }
 
@@ -1999,16 +2017,15 @@
                         <td>${escapeHtml(a.number)}</td>
                         <td>${escapeHtml(a.name)}</td>
                         <td>${escapeHtml(a.idNumber) || '-'}</td>
-                        <td>${escapeHtml(a.subject)}</td>
-                        <td>${escapeHtml(a.date) || '-'}</td>
-                        <td>${escapeHtml(a.time) || '-'}</td>
                         <td>${escapeHtml(a.phone) || '-'}</td>
+                        <td>${escapeHtml(a.subject)}</td>
                         <td>${escapeHtml(a.meetingType) || '-'}</td>
                         <td>${escapeHtml(a.department)}</td>
+                        <td>${escapeHtml(a.date) || '-'}</td>
+                        <td>${escapeHtml(a.time) || '-'}</td>
                         <td>${escapeHtml(a.statement) || '-'}</td>
                         <td class="col-dir-op">${escapeHtml(a.directorOpinion) || '-'}</td>
-                        <td>${escapeHtml(a.attachmentDetails ? a.attachments + ' - ' + a.attachmentDetails : a.attachments)}</td>
-                        <td><span class="badge ${a.evaluation === 'نعم' ? 'badge-yes' : 'badge-no'}">${a.evaluation}</span></td>
+                        <td>${escapeHtml(a.attachments)}</td>
                         <td>${escapeHtml(a.status) || '-'}${a.signed ? ' <span class="badge" style="background:#e6f4ea;color:#1e7e34;">موقّع</span>' : ''}${a.forDiscussion ? ' <span class="badge" style="background:#fff3cd;color:#8a6d3b;">للمناقشة</span>' : ''}</td>
                         <td class="col-stages">${stageChips(a)}</td>
                         <td style="white-space:nowrap;">
@@ -2094,16 +2111,16 @@
             const list = getFiltered();
             if (list.length === 0) { alert('لا توجد بيانات للتصدير'); return; }
 
-            const headers = ['الرقم', 'الاسم', 'رقم الهوية', 'الموضوع', 'نص الطلب', 'تاريخ الموعد', 'وقت الموعد', 'رقم الجوال', 'نوع الموعد', 'الإدارة المختصة', 'الافادة', 'رأي المدير العام', 'المرفقات', 'التقييم', 'حالة الطلب'];
+            const headers = ['الرقم', 'الاسم', 'رقم الهوية', 'رقم الجوال', 'الموضوع', 'نص الطلب', 'نوع الموعد', 'الإدارة المختصة', 'تاريخ الموعد', 'وقت الموعد', 'الافادة', 'رأي المدير العام', 'المرفقات', 'حالة الطلب'];
             const esc = s => String(s == null ? '' : s)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
             const cell = v => `<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`;
 
             const headerRow = `<Row>${headers.map(cell).join('')}</Row>`;
-            const attach = a => a.attachmentDetails ? a.attachments + ' - ' + a.attachmentDetails : a.attachments;
+            const attach = a => a.attachments;
             const bodyRows = list.map(a => `<Row>
-                ${cell(a.number)}${cell(a.name)}${cell(a.idNumber)}${cell(a.subject)}${cell(a.requestText)}${cell(a.date)}${cell(a.time)}${cell(a.phone)}${cell(a.meetingType)}${cell(a.department)}${cell(a.statement)}${cell(a.directorOpinion)}${cell(attach(a))}${cell(a.evaluation)}${cell(a.status)}
+                ${cell(a.number)}${cell(a.name)}${cell(a.idNumber)}${cell(a.phone)}${cell(a.subject)}${cell(a.requestText)}${cell(a.meetingType)}${cell(a.department)}${cell(a.date)}${cell(a.time)}${cell(a.statement)}${cell(a.directorOpinion)}${cell(attach(a))}${cell(a.status)}
             </Row>`).join('');
 
             const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -2453,7 +2470,6 @@ ${doc.innerHTML}
         }
 
         searchInput.addEventListener('input', render);
-        if (filterEval) filterEval.addEventListener('change', render);
 
         document.getElementById('year').textContent = new Date().getFullYear();
         bootstrap();

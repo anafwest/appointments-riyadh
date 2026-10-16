@@ -239,6 +239,31 @@
 
         .table-wrap { overflow-x: auto; }
 
+        .appt-cards { display: flex; flex-direction: column; gap: 12px; }
+        .appt-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px 16px;
+            transition: .15s;
+        }
+        .appt-card:hover { border-color: var(--green-400); background: rgba(9, 166, 108, 0.06); }
+        .appt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .appt-num { font-weight: 700; color: var(--mint); background: rgba(0, 106, 70, 0.16); padding: 3px 12px; border-radius: 20px; font-size: 0.9em; }
+        .appt-name { font-weight: 700; font-size: 1.05em; }
+        .appt-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-inline-start: auto; }
+        .appt-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 0.88em; }
+        .appt-meta .mi { white-space: nowrap; }
+        .appt-meta .mi b { color: var(--text); font-weight: 600; margin-inline-end: 4px; }
+        .appt-line { font-size: 0.92em; line-height: 1.6; }
+        .appt-line b { color: var(--mint); font-weight: 700; margin-inline-end: 4px; }
+        .appt-dept { color: var(--green-400); font-weight: 600; }
+        .appt-stages { display: flex; flex-wrap: wrap; gap: 4px; }
+        .appt-empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+
         .badge {
             display: inline-block;
             padding: 4px 12px;
@@ -1001,30 +1026,7 @@
                 <button type="button" class="btn-ghost" onclick="exportExcel()">⬇️ تصدير Excel</button>
             </div>
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>الرقم</th>
-                            <th>الاسم</th>
-                            <th>رقم الهوية</th>
-                            <th>رقم الجوال</th>
-                            <th>الموضوع</th>
-                            <th>نوع الموعد</th>
-                            <th>الإدارة المختصة</th>
-                            <th>تاريخ الموعد</th>
-                            <th>وقت الموعد</th>
-                            <th>الافادة</th>
-                            <th class="col-dir-op">رأي المدير العام</th>
-                            <th>المرفقات</th>
-                            <th>حالة الطلب</th>
-                            <th class="col-stages">مراحل الطلب</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body"></tbody>
-                </table>
-            </div>
+            <div class="appt-cards" id="table-body"></div>
         </div>
     </div>
 
@@ -2058,28 +2060,32 @@
             const list = getFiltered();
 
             if (list.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="15" class="empty">لا توجد مواعيد مطابقة</td></tr>';
+                tableBody.innerHTML = '<div class="appt-empty">لا توجد مواعيد مطابقة</div>';
             } else {
                 tableBody.innerHTML = list.map(a => `
-                    <tr>
-                        <td>${escapeHtml(a.number)}</td>
-                        <td>${escapeHtml(a.name)}</td>
-                        <td>${escapeHtml(a.idNumber) || '-'}</td>
-                        <td>${escapeHtml(a.phone) || '-'}</td>
-                        <td>${escapeHtml(a.subject)}</td>
-                        <td>${escapeHtml(a.meetingType) || '-'}</td>
-                        <td>${escapeHtml(a.department)}</td>
-                        <td>${escapeHtml(a.date) || '-'}</td>
-                        <td>${escapeHtml(a.time) || '-'}</td>
-                        <td>${escapeHtml(a.statement) || '-'}</td>
-                        <td class="col-dir-op">${escapeHtml(a.directorOpinion) || '-'}</td>
-                        <td>${escapeHtml(a.attachments)}</td>
-                        <td>${escapeHtml(a.status) || '-'}${a.signed ? ' <span class="badge" style="background:#e6f4ea;color:#1e7e34;">موقّع</span>' : ''}${a.forDiscussion ? ' <span class="badge" style="background:#fff3cd;color:#8a6d3b;">للمناقشة</span>' : ''}</td>
-                        <td class="col-stages">${stageChips(a)}</td>
-                        <td style="white-space:nowrap;">
-                            ${actionButtons(a)}
-                        </td>
-                    </tr>
+                    <div class="appt-card">
+                        <div class="appt-head">
+                            <span class="appt-num">#${escapeHtml(a.number)}</span>
+                            <span class="appt-name">${escapeHtml(a.name)}</span>
+                            <span class="appt-dept">${escapeHtml(a.department) || '-'}</span>
+                            ${a.signed ? '<span class="badge" style="background:#e6f4ea;color:#1e7e34;">موقّع</span>' : ''}
+                            ${a.forDiscussion ? '<span class="badge" style="background:#fff3cd;color:#8a6d3b;">للمناقشة</span>' : ''}
+                            <span class="appt-actions">${actionButtons(a)}</span>
+                        </div>
+                        <div class="appt-meta">
+                            <span class="mi"><b>رقم الهوية</b>${escapeHtml(a.idNumber) || '-'}</span>
+                            <span class="mi"><b>الجوال</b>${escapeHtml(a.phone) || '-'}</span>
+                            <span class="mi"><b>التاريخ</b>${escapeHtml(a.date) || '-'}</span>
+                            <span class="mi"><b>الوقت</b>${escapeHtml(a.time) || '-'}</span>
+                            <span class="mi"><b>نوع الموعد</b>${escapeHtml(a.meetingType) || '-'}</span>
+                            <span class="mi"><b>المرفقات</b>${escapeHtml(a.attachments) || '-'}</span>
+                        </div>
+                        <div class="appt-line"><b>الموضوع:</b> ${escapeHtml(a.subject) || '-'}</div>
+                        <div class="appt-line"><b>الإفادة:</b> ${escapeHtml(a.statement) || '-'}</div>
+                        <div class="appt-line col-dir-op"><b>رأي المدير العام:</b> ${escapeHtml(a.directorOpinion) || '-'}</div>
+                        <div class="appt-line"><b>حالة الطلب:</b> ${escapeHtml(a.status) || '-'}</div>
+                        <div class="appt-stages col-stages">${stageChips(a)}</div>
+                    </div>
                 `).join('');
             }
 

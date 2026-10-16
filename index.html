@@ -724,12 +724,12 @@
             font-size: 0.85em;
         }
 
-        .tpl-grid { width: 100%; border-collapse: collapse; }
-        .tpl-grid td { border: 1px solid #94a3a0; padding: 9px 10px; font-size: 0.92em; white-space: pre-line; }
+        .tpl-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .tpl-grid td { border: 1px solid #94a3a0; padding: 9px 10px; font-size: 0.92em; white-space: pre-line; overflow-wrap: anywhere; word-break: break-word; vertical-align: top; }
         .tpl-grid .lbl { width: 115px; background: #eef7f1; color: #006A46; font-weight: 700; text-align: center; font-size: 0.83em; }
 
         .tpl-chk { width: 100%; border-collapse: collapse; margin: 6px 0 2px; }
-        .tpl-chk td { border: 1px solid #94a3a0; padding: 10px 12px; font-size: 0.92em; }
+        .tpl-chk td { border: 1px solid #94a3a0; padding: 10px 12px; font-size: 0.92em; overflow-wrap: anywhere; word-break: break-word; }
 
         .tpl-cb { font-weight: 700; color: #006A46; margin-inline-end: 6px; }
 
@@ -747,6 +747,8 @@
             padding: 12px;
             margin: 6px 0;
             white-space: pre-line;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .tpl-status-line {
@@ -813,13 +815,14 @@
             }
             #template-doc {
                 width: 210mm !important;
-                height: 290mm !important;
+                height: auto !important;
+                min-height: 290mm !important;
                 max-width: none !important;
                 margin: 0 !important;
                 border-radius: 0 !important;
                 box-shadow: none !important;
                 padding: 9mm 12mm !important;
-                overflow: hidden !important;
+                overflow: visible !important;
                 display: flex !important;
                 flex-direction: column !important;
                 box-sizing: border-box !important;

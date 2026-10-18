@@ -1003,14 +1003,16 @@
 
                 <div class="field">
                     <label for="status">حالة الطلب</label>
-                    <select id="status">
+                    <select id="status" onchange="toggleStatusOther()">
                         <option value="">-- اختر حالة الطلب --</option>
                         <optgroup label="تم الحل">
                             <option>تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب</option>
                             <option>تم الحل وانهاء الطلب</option>
                         </optgroup>
                         <option>الطلب خارج اختصاص القطاع</option>
+                        <option value="أخرى">أخرى</option>
                     </select>
+                    <input type="text" id="status-other" placeholder="اكتب حالة الطلب" style="display:none; margin-top:8px;">
                 </div>
 
                 <button type="submit" class="action-btn full" id="submit-btn">حفظ الموعد</button>
@@ -1960,6 +1962,10 @@
             e.preventDefault();
 
             const id = document.getElementById('edit-id').value;
+            if (document.getElementById('status').value === 'أخرى' && !document.getElementById('status-other').value.trim()) {
+                alert('يرجى كتابة حالة الطلب');
+                return;
+            }
             const data = {
                 number: document.getElementById('number').value.trim(),
                 name: document.getElementById('name').value.trim(),
@@ -1974,7 +1980,9 @@
                 statement: document.getElementById('statement').value.trim(),
                 directorOpinion: document.getElementById('directorOpinion').value.trim(),
                 attachments: document.querySelector('input[name="attachments"]:checked').value,
-                status: document.getElementById('status').value
+                status: (document.getElementById('status').value === 'أخرى'
+                    ? document.getElementById('status-other').value.trim()
+                    : document.getElementById('status').value)
             };
 
             if (id) {
@@ -1993,9 +2001,19 @@
             alert('تم حفظ الموعد بنجاح');
         });
 
+        function toggleStatusOther() {
+            const sel = document.getElementById('status');
+            const inp = document.getElementById('status-other');
+            if (!sel || !inp) return;
+            const on = sel.value === 'أخرى';
+            inp.style.display = on ? 'block' : 'none';
+            if (!on) inp.value = '';
+        }
+
         function resetForm() {
             form.reset();
             document.getElementById('edit-id').value = '';
+            toggleStatusOther();
             document.getElementById('form-title').textContent = ' إضافة موعد جديد';
             document.getElementById('submit-btn').textContent = 'حفظ الموعد';
             document.getElementById('cancel-btn').style.display = 'none';
@@ -2026,7 +2044,16 @@
             document.getElementById('statement').value = a.statement;
             document.getElementById('directorOpinion').value = a.directorOpinion || '';
             document.querySelector(`input[name="attachments"][value="${a.attachments}"]`).checked = true;
-            document.getElementById('status').value = a.status || '';
+            const statusSel = document.getElementById('status');
+            const statusOpts = Array.prototype.slice.call(statusSel.options).map(o => o.value);
+            const stVal = a.status || '';
+            if (stVal && statusOpts.indexOf(stVal) === -1) {
+                statusSel.value = 'أخرى';
+                document.getElementById('status-other').value = stVal;
+            } else {
+                statusSel.value = stVal;
+            }
+            toggleStatusOther();
 
             document.getElementById('form-title').textContent = '✏️ تعديل الموعد';
             document.getElementById('submit-btn').textContent = 'تحديث الموعد';

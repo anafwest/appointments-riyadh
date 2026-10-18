@@ -444,6 +444,7 @@
 
         .statement-card h3 { color: var(--mint); margin-bottom: 6px; }
         .statement-card .st-dept { color: var(--muted); font-size: 0.9em; margin-bottom: 14px; }
+        .statement-card .st-locked-note { background: #fff3cd; border: 1px solid #f0ad4e; color: #7a5b00; border-radius: 8px; padding: 8px 12px; font-size: 0.85em; margin-bottom: 12px; line-height: 1.6; }
         .statement-card textarea { min-height: 120px; }
         .statement-card .actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
 
@@ -1045,9 +1046,10 @@
                 <h3>افادة الإدارة المختصة</h3>
                 <div class="st-dept" id="st-user-dept"></div>
                 <textarea id="st-text" placeholder="اكتب نص الافادة هنا..."></textarea>
+                <div class="st-locked-note" id="st-locked-note" style="display:none;">🔒 لا يمكن تعديل الإفادة بعد توقيع المدير العام. يمكن للمدير العام فقط التعديل، أو إعادة تحويل الموعد للإدارة لتحرير الإفادة.</div>
                 <div class="actions">
                     <button type="button" class="btn-ghost" onclick="closeStatement()">إغلاق</button>
-                    <button type="button" class="btn-ghost" onclick="saveStatement(false)">💾 حفظ</button>
+                    <button type="button" class="btn-ghost" id="st-save-btn" onclick="saveStatement(false)">💾 حفظ</button>
                     <button type="button" class="action-btn" id="st-send-btn" onclick="saveStatement(true)">📤 إرسال</button>
                 </div>
             </div>
@@ -1074,6 +1076,30 @@
                 <div class="files-list" id="files-list"></div>
                 <div class="actions">
                     <button type="button" class="btn-ghost" onclick="closeFiles()">إغلاق</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="status-overlay">
+            <div class="statement-card">
+                <h3>🏷️ حالة الطلب</h3>
+                <div class="st-dept" id="st-status-info"></div>
+                <div class="field">
+                    <label for="st-status">حالة الطلب</label>
+                    <select id="st-status" onchange="toggleStatusOtherForm()">
+                        <option value="">-- اختر حالة الطلب --</option>
+                        <optgroup label="تم الحل">
+                            <option>تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب</option>
+                            <option>تم الحل وانهاء الطلب</option>
+                        </optgroup>
+                        <option>الطلب خارج اختصاص القطاع</option>
+                        <option value="أخرى">أخرى</option>
+                    </select>
+                    <input type="text" id="st-status-other" placeholder="اكتب حالة الطلب" style="display:none; margin-top:8px;">
+                </div>
+                <div class="actions">
+                    <button type="button" class="btn-ghost" onclick="closeStatus()">إغلاق</button>
+                    <button type="button" class="action-btn" onclick="saveStatusOnly()">💾 حفظ</button>
                 </div>
             </div>
         </div>
@@ -1753,11 +1779,23 @@
             const a = appointments.find(x => x.id === id);
             if (!a) return;
             stEditingId = id;
-            document.getElementById('st-text').value = a.statement || '';
+            const isDirector = !!(currentUser && currentUser.role === 'director');
+            const locked = !!a.signed && !isDirector;
+            const ta = document.getElementById('st-text');
+            ta.value = a.statement || '';
+            ta.readOnly = locked;
             document.getElementById('st-user-dept').textContent = (currentUser && currentUser.role === 'dept') ? currentUser.name : (a.department || '');
             const sendBtn = document.getElementById('st-send-btn');
             if (sendBtn) {
-                sendBtn.style.display = (currentUser && currentUser.role === 'dept') ? 'inline-block' : 'none';
+                sendBtn.style.display = (!locked && currentUser && currentUser.role === 'dept') ? 'inline-block' : 'none';
+            }
+            const saveBtn = document.getElementById('st-save-btn');
+            if (saveBtn) {
+                saveBtn.style.display = locked ? 'none' : '';
+            }
+            const lockNote = document.getElementById('st-locked-note');
+            if (lockNote) {
+                lockNote.style.display = locked ? 'block' : 'none';
             }
             document.getElementById('statement-overlay').style.display = 'flex';
         }
@@ -1767,10 +1805,75 @@
             stEditingId = null;
         }
 
+        let stStatusId = null;
+
+        function openStatus(id) {
+            const a = appointments.find(x => x.id === id);
+            if (!a) return;
+            stStatusId = id;
+            const info = document.getElementById('st-status-info');
+            if (info) {
+                const parts = [];
+                if (a.number) parts.push('رقم: ' + a.number);
+                if (a.name) parts.push(a.name);
+                if (a.department) parts.push(a.department);
+                info.textContent = parts.join(' — ');
+            }
+            const sel = document.getElementById('st-status');
+            const other = document.getElementById('st-status-other');
+            const opts = Array.prototype.slice.call(sel.options).map(o => o.value);
+            const val = a.status || '';
+            if (val && opts.indexOf(val) === -1) {
+                sel.value = 'أخرى';
+                other.value = val;
+            } else {
+                sel.value = val;
+                other.value = '';
+            }
+            toggleStatusOtherForm();
+            document.getElementById('status-overlay').style.display = 'flex';
+        }
+
+        function closeStatus() {
+            document.getElementById('status-overlay').style.display = 'none';
+            stStatusId = null;
+        }
+
+        function toggleStatusOtherForm() {
+            const sel = document.getElementById('st-status');
+            const inp = document.getElementById('st-status-other');
+            if (!sel || !inp) return;
+            const on = sel.value === 'أخرى';
+            inp.style.display = on ? 'block' : 'none';
+            if (!on) inp.value = '';
+        }
+
+        function saveStatusOnly() {
+            if (stStatusId == null) return;
+            const idx = appointments.findIndex(x => x.id === stStatusId);
+            if (idx === -1) { closeStatus(); return; }
+            const sel = document.getElementById('st-status');
+            const other = document.getElementById('st-status-other');
+            if (sel.value === 'أخرى' && !other.value.trim()) {
+                alert('يرجى كتابة حالة الطلب');
+                return;
+            }
+            appointments[idx].status = sel.value === 'أخرى' ? other.value.trim() : sel.value;
+            saveAppointments(appointments);
+            closeStatus();
+            render();
+        }
+
         function saveStatement(send = true) {
             if (stEditingId == null) return;
             const idx = appointments.findIndex(x => x.id === stEditingId);
             if (idx !== -1) {
+                const isDirector = !!(currentUser && currentUser.role === 'director');
+                if (appointments[idx].signed && !isDirector) {
+                    alert('لا يمكن تعديل الإفادة بعد توقيع المدير العام. يمكن للمدير العام فقط التعديل أو إعادة تحويل الموعد للإدارة.');
+                    closeStatement();
+                    return;
+                }
                 const txt = document.getElementById('st-text').value.trim();
                 appointments[idx].statement = txt;
                 appointments[idx].statementBy = currentUser ? currentUser.name : '';
@@ -2177,6 +2280,7 @@
                 btns += `<button class="row-btn" title="عرض المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>`;
                 if (a.signed) {
                     btns += `<button class="row-btn" title="موقّع (اضغط لإلغاء التوقيع)" onclick="signAppointment(${a.id})" style="background:#e6f4ea;border-color:#1e7e34;">✅</button>`;
+                    btns += `<button class="row-btn" title="تحرير الإفادة" onclick="openStatement(${a.id})">✍️</button>`;
                 } else {
                     btns += `<button class="row-btn" title="توقيع المدير العام" onclick="signAppointment(${a.id})">✍️</button>`;
                 }
@@ -2185,6 +2289,9 @@
                 return btns;
             }
             if (currentUser && currentUser.role === 'admin') {
+                if (a.signed) {
+                    return `<button class="row-btn" title="حالة الطلب" onclick="openStatus(${a.id})" style="${a.status ? 'background:#e6f4ea;border-color:#1e7e34;' : ''}">🏷️</button>`;
+                }
                 return `
                     <button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>
                     <button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
@@ -2475,14 +2582,16 @@ ${bodyRows}
         }
 
         function returnToStatement(id) {
-            if (!confirm('هل تريد إعادة الموعد للإدارة المختصة لتكتب إفادة جديدة؟')) return;
+            if (!confirm('هل تريد إعادة تحويل الموعد للإدارة المختصة لتحرير الإفادة؟')) return;
             const idx = appointments.findIndex(x => x.id === id);
             if (idx !== -1) {
+                appointments[idx].signed = false;
+                delete appointments[idx].signedBy;
+                delete appointments[idx].signedAt;
                 appointments[idx].statementSent = false;
                 appointments[idx].completed = false;
                 appointments[idx].returnedBy = currentUser ? currentUser.name : '';
                 appointments[idx].returnedAt = new Date().toISOString();
-                appointments[idx].statement = '';
                 saveAppointments(appointments);
             }
             render();
@@ -2492,6 +2601,9 @@ ${bodyRows}
             if (!confirm('هل تريد طلب تعديل الإفادة من الإدارة المختصة؟')) return;
             const idx = appointments.findIndex(x => x.id === id);
             if (idx !== -1) {
+                appointments[idx].signed = false;
+                delete appointments[idx].signedBy;
+                delete appointments[idx].signedAt;
                 appointments[idx].statementSent = false;
                 appointments[idx].completed = false;
                 appointments[idx].editRequestedBy = currentUser ? currentUser.name : '';

@@ -511,7 +511,16 @@
         .badge-draft { background: rgba(255, 255, 255, 0.12); color: var(--muted); }
         .badge-sent { background: rgba(95, 211, 160, 0.2); color: var(--mint); }
         .done-mark { color: var(--mint); font-weight: 700; }
-    </style>
+            /* حالة الطلب داخل نموذج الموعد: باقي الخانات معطّلة وظاهرة (للقراءة فقط) */
+        #appointment-form.status-mode .field:not(.status-only) input,
+        #appointment-form.status-mode .field:not(.status-only) select,
+        #appointment-form.status-mode .field:not(.status-only) textarea {
+            background: #f1f5f9;
+            color: #475569;
+            -webkit-text-fill-color: #475569;
+            cursor: not-allowed;
+        }
+</style>
     <style id="light-theme">
         :root {
             --text: #12291f;
@@ -1002,18 +1011,14 @@
                     </div>
                 </div>
 
-                <div class="field">
+                <div class="field status-only">
                     <label for="status">حالة الطلب</label>
-                    <select id="status" onchange="toggleStatusOther()">
-                        <option value="">-- اختر حالة الطلب --</option>
-                        <optgroup label="تم الحل">
-                            <option>تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب</option>
-                            <option>تم الحل وانهاء الطلب</option>
-                        </optgroup>
-                        <option>الطلب خارج اختصاص القطاع</option>
-                        <option value="أخرى">أخرى</option>
-                    </select>
-                    <input type="text" id="status-other" placeholder="اكتب حالة الطلب" style="display:none; margin-top:8px;">
+                    <input type="text" id="status" list="status-list" placeholder="اختر أو اكتب حالة الطلب" autocomplete="off">
+                    <datalist id="status-list">
+                        <option value="تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب"></option>
+                        <option value="تم الحل وانهاء الطلب"></option>
+                        <option value="الطلب خارج اختصاص القطاع"></option>
+                    </datalist>
                 </div>
 
                 <button type="submit" class="action-btn full" id="submit-btn">حفظ الموعد</button>
@@ -1080,31 +1085,7 @@
             </div>
         </div>
 
-        <div id="status-overlay">
-            <div class="statement-card">
-                <h3>🏷️ حالة الطلب</h3>
-                <div class="st-dept" id="st-status-info"></div>
-                <div class="field">
-                    <label for="st-status">حالة الطلب</label>
-                    <select id="st-status" onchange="toggleStatusOtherForm()">
-                        <option value="">-- اختر حالة الطلب --</option>
-                        <optgroup label="تم الحل">
-                            <option>تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب</option>
-                            <option>تم الحل وانهاء الطلب</option>
-                        </optgroup>
-                        <option>الطلب خارج اختصاص القطاع</option>
-                        <option value="أخرى">أخرى</option>
-                    </select>
-                    <input type="text" id="st-status-other" placeholder="اكتب حالة الطلب" style="display:none; margin-top:8px;">
-                </div>
-                <div class="actions">
-                    <button type="button" class="btn-ghost" onclick="closeStatus()">إغلاق</button>
-                    <button type="button" class="action-btn" onclick="saveStatusOnly()">💾 حفظ</button>
-                </div>
-            </div>
-        </div>
-
-    <div id="sign-overlay">
+            <div id="sign-overlay">
         <div class="sign-card">
             <h3>✍️ التوقيع الإلكتروني للمدير العام</h3>
             <p class="sign-hint">ارسم توقيعك داخل المربع، أو حمّل صورة توقيعك، ثم اضغط «حفظ التوقيع»</p>
@@ -1805,64 +1786,6 @@
             stEditingId = null;
         }
 
-        let stStatusId = null;
-
-        function openStatus(id) {
-            const a = appointments.find(x => x.id === id);
-            if (!a) return;
-            stStatusId = id;
-            const info = document.getElementById('st-status-info');
-            if (info) {
-                const parts = [];
-                if (a.number) parts.push('رقم: ' + a.number);
-                if (a.name) parts.push(a.name);
-                if (a.department) parts.push(a.department);
-                info.textContent = parts.join(' — ');
-            }
-            const sel = document.getElementById('st-status');
-            const other = document.getElementById('st-status-other');
-            const opts = Array.prototype.slice.call(sel.options).map(o => o.value);
-            const val = a.status || '';
-            if (val && opts.indexOf(val) === -1) {
-                sel.value = 'أخرى';
-                other.value = val;
-            } else {
-                sel.value = val;
-                other.value = '';
-            }
-            toggleStatusOtherForm();
-            document.getElementById('status-overlay').style.display = 'flex';
-        }
-
-        function closeStatus() {
-            document.getElementById('status-overlay').style.display = 'none';
-            stStatusId = null;
-        }
-
-        function toggleStatusOtherForm() {
-            const sel = document.getElementById('st-status');
-            const inp = document.getElementById('st-status-other');
-            if (!sel || !inp) return;
-            const on = sel.value === 'أخرى';
-            inp.style.display = on ? 'block' : 'none';
-            if (!on) inp.value = '';
-        }
-
-        function saveStatusOnly() {
-            if (stStatusId == null) return;
-            const idx = appointments.findIndex(x => x.id === stStatusId);
-            if (idx === -1) { closeStatus(); return; }
-            const sel = document.getElementById('st-status');
-            const other = document.getElementById('st-status-other');
-            if (sel.value === 'أخرى' && !other.value.trim()) {
-                alert('يرجى كتابة حالة الطلب');
-                return;
-            }
-            appointments[idx].status = sel.value === 'أخرى' ? other.value.trim() : sel.value;
-            saveAppointments(appointments);
-            closeStatus();
-            render();
-        }
 
         function saveStatement(send = true) {
             if (stEditingId == null) return;
@@ -2064,11 +1987,12 @@
         form.addEventListener('submit', function (e) {
             e.preventDefault();
 
-            const id = document.getElementById('edit-id').value;
-            if (document.getElementById('status').value === 'أخرى' && !document.getElementById('status-other').value.trim()) {
-                alert('يرجى كتابة حالة الطلب');
+            if (document.getElementById('appointment-form').classList.contains('status-mode')) {
+                saveStatusOnlyForm();
                 return;
             }
+
+            const id = document.getElementById('edit-id').value;
             const data = {
                 number: document.getElementById('number').value.trim(),
                 name: document.getElementById('name').value.trim(),
@@ -2083,9 +2007,7 @@
                 statement: document.getElementById('statement').value.trim(),
                 directorOpinion: document.getElementById('directorOpinion').value.trim(),
                 attachments: document.querySelector('input[name="attachments"]:checked').value,
-                status: (document.getElementById('status').value === 'أخرى'
-                    ? document.getElementById('status-other').value.trim()
-                    : document.getElementById('status').value)
+                status: document.getElementById('status').value.trim()
             };
 
             if (id) {
@@ -2104,19 +2026,41 @@
             alert('تم حفظ الموعد بنجاح');
         });
 
-        function toggleStatusOther() {
-            const sel = document.getElementById('status');
-            const inp = document.getElementById('status-other');
-            if (!sel || !inp) return;
-            const on = sel.value === 'أخرى';
-            inp.style.display = on ? 'block' : 'none';
-            if (!on) inp.value = '';
+        function setFormFieldsDisabled(disabled) {
+            Array.prototype.forEach.call(document.getElementById('appointment-form').querySelectorAll('input, select, textarea'), function (el) {
+                if (el.closest('.status-only')) return;
+                el.disabled = disabled;
+            });
+        }
+
+        function openStatusForm(id) {
+            const a = appointments.find(x => x.id === id);
+            if (!a) return;
+            editAppointment(id);
+            document.getElementById('appointment-form').classList.add('status-mode');
+            document.getElementById('form-title').textContent = '🏷️ حالة الطلب';
+            document.getElementById('submit-btn').textContent = '💾 حفظ حالة الطلب';
+            setFormFieldsDisabled(true);
+        }
+
+        function saveStatusOnlyForm() {
+            const id = Number(document.getElementById('edit-id').value);
+            const idx = appointments.findIndex(a => a.id === id);
+            if (idx === -1) { resetForm(); return; }
+            const val = document.getElementById('status').value.trim();
+            if (!val) { alert('اختر حالة الطلب'); return; }
+            appointments[idx].status = val;
+            saveAppointments(appointments);
+            resetForm();
+            render();
+            alert('تم حفظ حالة الطلب');
         }
 
         function resetForm() {
             form.reset();
+            document.getElementById('appointment-form').classList.remove('status-mode');
+            setFormFieldsDisabled(false);
             document.getElementById('edit-id').value = '';
-            toggleStatusOther();
             document.getElementById('form-title').textContent = ' إضافة موعد جديد';
             document.getElementById('submit-btn').textContent = 'حفظ الموعد';
             document.getElementById('cancel-btn').style.display = 'none';
@@ -2147,16 +2091,9 @@
             document.getElementById('statement').value = a.statement;
             document.getElementById('directorOpinion').value = a.directorOpinion || '';
             document.querySelector(`input[name="attachments"][value="${a.attachments}"]`).checked = true;
-            const statusSel = document.getElementById('status');
-            const statusOpts = Array.prototype.slice.call(statusSel.options).map(o => o.value);
-            const stVal = a.status || '';
-            if (stVal && statusOpts.indexOf(stVal) === -1) {
-                statusSel.value = 'أخرى';
-                document.getElementById('status-other').value = stVal;
-            } else {
-                statusSel.value = stVal;
-            }
-            toggleStatusOther();
+            document.getElementById('appointment-form').classList.remove('status-mode');
+            setFormFieldsDisabled(false);
+            document.getElementById('status').value = a.status || '';
 
             document.getElementById('form-title').textContent = '✏️ تعديل الموعد';
             document.getElementById('submit-btn').textContent = 'تحديث الموعد';
@@ -2254,7 +2191,7 @@
         function actionButtons(a) {
             if (currentUser && currentUser.role === 'dept') {
                 let deptBtns = '';
-                if (a.signed) deptBtns += `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
+                deptBtns += `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
                 deptBtns += `<button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                         <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>`;
                 return deptBtns;
@@ -2275,7 +2212,8 @@
             }
             if (currentUser && currentUser.role === 'admin') {
                 if (a.signed) {
-                    return `<button class="row-btn" title="حالة الطلب" onclick="openStatus(${a.id})" style="${a.status ? 'background:#e6f4ea;border-color:#1e7e34;' : ''}">🏷️</button>`;
+                    return `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>
+                    <button class="row-btn" title="حالة الطلب" onclick="openStatusForm(${a.id})" style="${a.status ? 'background:#e6f4ea;border-color:#1e7e34;' : ''}">🏷️</button>`;
                 }
                 return `
                     <button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>

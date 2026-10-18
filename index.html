@@ -2240,21 +2240,6 @@
             switchTab('done');
         }
 
-        function renderExtraActions(a) {
-            let extra = '';
-            if (currentUser) {
-                if (currentUser.role === 'admin') {
-                    if (a.statementSent) {
-                        extra += `<button class="row-btn" title="طلب تعديل الإفادة" onclick="requestStatementEdit(${a.id})">↩️</button>`;
-                        extra += `<button class="row-btn" title="إعادة الموعد للإفادة" onclick="returnToStatement(${a.id})">🔄</button>`;
-                    } else {
-                        extra += `<button class="row-btn" title="رد الإفادة للتعديل" onclick="requestStatementEdit(${a.id})">↩️</button>`;
-                    }
-                }
-            }
-            return extra;
-        }
-
         function stageChips(a) {
             const chips = [];
             if (a.statementSent || a.completed) chips.push('<span class="chip chip-ok">إفادة</span>');
@@ -2297,8 +2282,7 @@
                     <button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                     <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>
                     <button class="row-btn" title="تعديل" onclick="editAppointment(${a.id})">✏️</button>
-                    <button class="row-btn" title="حذف" onclick="deleteAppointment(${a.id})">🗑️</button>
-                    ${renderExtraActions(a)}`;
+                    <button class="row-btn" title="حذف" onclick="deleteAppointment(${a.id})">🗑️</button>`;
             }
             return ``;
         }

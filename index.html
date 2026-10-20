@@ -400,7 +400,7 @@
         .gh-status { font-size: 0.8em; color: var(--muted); margin-bottom: 10px; line-height: 1.7; text-align: center; }
         .gh-connect input { width: 100%; }
 
-        #statement-overlay, #opinion-overlay, #files-overlay, #settings-overlay, #register-overlay {
+        #statement-overlay, #opinion-overlay, #files-overlay, #settings-overlay, #register-overlay, #alerts-overlay {
             display: none;
             position: fixed;
             inset: 0;
@@ -454,6 +454,18 @@
         .register-table th { background: rgba(0, 106, 70, 0.2); color: var(--mint); font-weight: 700; }
         .register-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.04); }
         .register-table td.register-empty { text-align: center; color: var(--muted); padding: 20px 10px; }
+
+        .alerts-card { width: 800px; max-width: 100%; max-height: 88vh; overflow-y: auto; }
+        .alert-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: rgba(255, 255, 255, 0.04); }
+        .alert-row .alert-dept { font-weight: 700; color: var(--mint); }
+        .alert-row .alert-count { display: inline-block; margin-inline-start: 8px; padding: 2px 9px; border-radius: 20px; background: rgba(255, 255, 255, 0.08); color: var(--muted); font-size: 0.8em; font-weight: 600; }
+        .alert-row .alert-mails { flex: 1 1 100%; color: var(--muted); font-size: 0.78em; word-break: break-all; direction: ltr; text-align: left; }
+        .alert-row .alert-msg { flex: 1 1 100%; font-size: 0.82em; color: var(--muted); }
+        .alert-row .alert-msg.ok { color: #7ee0a8; }
+        .alert-row .alert-msg.err { color: #ff9b9b; }
+        .ej-check { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--muted); font-size: 0.92em; cursor: pointer; }
+        .ej-check input { width: auto; flex: 0 0 auto; }
+        #ej-status { display: inline-block; margin-inline-start: 10px; }
 
         body:not(.role-director) .col-dir-op { display: none !important; }
 
@@ -1075,6 +1087,7 @@
                 <button type="button" id="sign-btn-main" class="action-btn" onclick="openSignature()" style="display:none;">✍️ توقيع المدير العام</button>
                 <button type="button" class="btn-ghost" onclick="exportExcel()">⬇️ تصدير Excel</button>
                 <button type="button" id="register-btn" class="btn-ghost" onclick="openRegister()" style="display:none;">📋 جدول المواعيد</button>
+                <button type="button" id="alerts-btn" class="btn-ghost" onclick="openAlerts()" style="display:none;">🔔 تنبيهات المواعيد</button>
             </div>
 
             <div class="appt-cards" id="table-body"></div>
@@ -1146,6 +1159,20 @@
             </div>
         </div>
 
+        <div id="alerts-overlay">
+            <div class="statement-card alerts-card">
+                <h3>🔔 تنبيهات المواعيد المحالة</h3>
+                <div class="st-dept" id="alerts-sub"></div>
+                <div class="st-locked-note" id="alerts-note" style="display:none;"></div>
+                <div id="alerts-list"></div>
+                <div class="actions">
+                    <button type="button" class="btn-ghost" onclick="openAlertsSettings()">⚙️ إعدادات الإيميل</button>
+                    <button type="button" class="btn-ghost" onclick="closeAlerts()">إغلاق</button>
+                    <button type="button" class="action-btn" onclick="sendAllAlerts()">📧 إرسال الكل</button>
+                </div>
+            </div>
+        </div>
+
             <div id="sign-overlay">
         <div class="sign-card">
             <h3>✍️ التوقيع الإلكتروني للمدير العام</h3>
@@ -1172,6 +1199,7 @@
             <div class="tabs" style="margin-bottom:16px;">
                 <button type="button" id="set-tab-users" class="tab active" onclick="switchSettingsTab('users')">المستخدمون</button>
                 <button type="button" id="set-tab-depts" class="tab" onclick="switchSettingsTab('depts')">الإدارات</button>
+                <button type="button" id="set-tab-alerts" class="tab" onclick="switchSettingsTab('alerts')">التنبيهات</button>
             </div>
             <div id="settings-users">
                 <div class="settings-users-wrap">
@@ -1197,6 +1225,17 @@
                     <input type="text" id="new-dept" placeholder="اسم الإدارة الجديدة">
                     <button type="button" class="action-btn" onclick="addDept()">➕ إضافة إدارة</button>
                 </div>
+            </div>
+            <div id="settings-alerts" style="display:none;">
+                <div class="st-dept">خدمة الإرسال: <b>EmailJS</b> — أنشئ حسابًا على emailjs.com، ثم خدمة بريد (Gmail/Outlook) وقالبًا، وضع المفاتيح الثلاثة هنا.
+                    في القالب: اجعل حقل «To Email» هو <b dir="ltr">{{to_email}}</b> وحقل الرسالة «Message» هو <b dir="ltr">{{message}}</b>، و«Subject» هو <b dir="ltr">{{subject}}</b>.</div>
+                <div class="field"><label for="ej-user">User ID (Public Key)</label><input type="text" id="ej-user" dir="ltr" placeholder="user_xxxxxxxx" onchange="saveEmailCfg()"></div>
+                <div class="field"><label for="ej-service">Service ID</label><input type="text" id="ej-service" dir="ltr" placeholder="service_xxxxxxxx" onchange="saveEmailCfg()"></div>
+                <div class="field"><label for="ej-template">Template ID</label><input type="text" id="ej-template" dir="ltr" placeholder="template_xxxxxxxx" onchange="saveEmailCfg()"></div>
+                <label class="ej-check"><input type="checkbox" id="ej-auto" onchange="saveEmailCfg()"> تذكير تلقائي عند الدخول بمواعيد اليوم/الغد المحالة (مرة واحدة يوميًا)</label>
+                <button type="button" class="btn-ghost" onclick="testEmail()">📧 إرسال رسالة اختبار</button>
+                <span id="ej-status" class="st-dept"></span>
+                <div class="st-dept" id="ej-mails" style="margin-top:12px;"></div>
             </div>
             <div class="actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
                 <button type="button" class="btn-ghost" onclick="closeSettings()">إغلاق</button>
@@ -1669,6 +1708,9 @@
             if (signMain) signMain.style.display = isDirector ? 'inline-block' : 'none';
             const regBtn = document.getElementById('register-btn');
             if (regBtn) regBtn.style.display = (!isDept && !isDirector) ? 'inline-block' : 'none';
+            const alBtn = document.getElementById('alerts-btn');
+            if (alBtn) alBtn.style.display = (!isDept && !isDirector) ? 'inline-block' : 'none';
+            if (!isDept && !isDirector) setTimeout(maybeAutoAlert, 6000);
             const showForm = canAdd && currentTab !== 'done';
             document.getElementById('form-card').style.display = showForm ? 'block' : 'none';
             const grid = document.querySelector('.grid');
@@ -1691,8 +1733,11 @@
         function switchSettingsTab(tab) {
             document.getElementById('set-tab-users').classList.toggle('active', tab === 'users');
             document.getElementById('set-tab-depts').classList.toggle('active', tab === 'depts');
+            document.getElementById('set-tab-alerts').classList.toggle('active', tab === 'alerts');
             document.getElementById('settings-users').style.display = tab === 'users' ? 'block' : 'none';
             document.getElementById('settings-depts').style.display = tab === 'depts' ? 'block' : 'none';
+            document.getElementById('settings-alerts').style.display = tab === 'alerts' ? 'block' : 'none';
+            if (tab === 'alerts') loadEmailCfgIntoForm();
         }
 
         function deptOptionsHtml(selected) {
@@ -2334,6 +2379,233 @@
                 const boxRate = `<div class="stat-box"><div class="stat-number">${rate}%</div><div class="stat-label">نسبة الإنجاز</div></div>`;
                 grid.innerHTML = boxTotal + boxDone + boxWip + boxRate;
             }
+        }
+
+        const ALERT_OFFICE_MAILS = ['Hdosary@alriyadh.gov.sa', 'anaf@alriyadh.gov.sa'];
+        const ALERT_DEPT_MAILS = [
+            { match: 'رخص البناء', mails: ['raalzahrani@alriyadh.gov.sa', 'RAlmoedy@alriyadh.gov.sa'] },
+            { match: 'الرخص التجارية', mails: ['aOtaib@alriyadh.gov.sa', 'tAlsabi@alriyadh.gov.sa'] },
+            { match: 'شوون الاراضي', mails: ['hhamdan@alriyadh.gov.sa', 'AdaDossari@alriyadh.gov.sa'] }
+        ];
+        let ALERT_GROUPS = [];
+
+        function alertMailsFor(deptName) {
+            const key = normStr(deptName);
+            for (let i = 0; i < ALERT_DEPT_MAILS.length; i++) {
+                if (key.indexOf(normStr(ALERT_DEPT_MAILS[i].match)) !== -1) return ALERT_DEPT_MAILS[i].mails;
+            }
+            return null;
+        }
+
+        function emailCfg() {
+            return {
+                user: (localStorage.getItem('ej_user') || '').trim(),
+                service: (localStorage.getItem('ej_service') || '').trim(),
+                template: (localStorage.getItem('ej_template') || '').trim(),
+                auto: localStorage.getItem('ej_auto') === '1'
+            };
+        }
+
+        function saveEmailCfg() {
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('ej-user')) return;
+            localStorage.setItem('ej_user', (g('ej-user').value || '').trim());
+            localStorage.setItem('ej_service', (g('ej-service').value || '').trim());
+            localStorage.setItem('ej_template', (g('ej-template').value || '').trim());
+            localStorage.setItem('ej_auto', g('ej-auto').checked ? '1' : '0');
+            const st = g('ej-status');
+            if (st) { st.textContent = 'تم الحفظ ✓'; st.style.color = '#7ee0a8'; }
+            renderAlertMailsHint();
+        }
+
+        function renderAlertMailsHint() {
+            const el = document.getElementById('ej-mails');
+            if (!el) return;
+            el.textContent = 'المستلمون — مكتب المدير العام: ' + ALERT_OFFICE_MAILS.join('، ') +
+                ' — الإدارات: ' + ALERT_DEPT_MAILS.map(m => m.match + ' (' + m.mails.join('، ') + ')').join(' | ');
+        }
+
+        function loadEmailCfgIntoForm() {
+            const cfg = emailCfg();
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('ej-user')) return;
+            g('ej-user').value = cfg.user;
+            g('ej-service').value = cfg.service;
+            g('ej-template').value = cfg.template;
+            g('ej-auto').checked = cfg.auto;
+            const st = g('ej-status');
+            if (st) {
+                st.textContent = cfg.user && cfg.service && cfg.template ? 'الخدمة مفعّلة ✓' : 'الخدمة غير مفعّلة — أدخل المفاتيح الثلاثة';
+                st.style.color = cfg.user && cfg.service && cfg.template ? '#7ee0a8' : '#f0ad4e';
+            }
+            renderAlertMailsHint();
+        }
+
+        function sendEmailJS(to, subject, message) {
+            const cfg = emailCfg();
+            if (!cfg.user || !cfg.service || !cfg.template) {
+                return Promise.reject(new Error('خدمة الإيميل غير مفعّلة — الإعدادات ← تبويب «التنبيهات»'));
+            }
+            return fetch('https://api.emailjs.com/api/v1.0/email/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: cfg.user,
+                    service_id: cfg.service,
+                    template_id: cfg.template,
+                    template_params: {
+                        to_email: to.join(', '),
+                        to_emails: to.join(', '),
+                        subject: subject,
+                        message: message,
+                        from_name: 'نظام إدارة المواعيد — أمانة منطقة الرياض'
+                    }
+                })
+            }).then(function (res) {
+                if (!res.ok) {
+                    return res.text().then(function (t) {
+                        throw new Error('HTTP ' + res.status + (t ? ' — ' + t.slice(0, 140) : ''));
+                    });
+                }
+                return true;
+            });
+        }
+
+        function activeAppts(list) {
+            return list.filter(a => !isDone(a)).sort(function (x, y) {
+                const dx = (x.date || '') + 'T' + (x.time || '');
+                const dy = (y.date || '') + 'T' + (y.time || '');
+                return dx < dy ? -1 : (dx > dy ? 1 : 0);
+            });
+        }
+
+        function alertGroups() {
+            const all = activeAppts(roleAll());
+            const groups = [{ title: 'مكتب المدير العام (كل المواعيد المحالة)', mails: ALERT_OFFICE_MAILS, list: all }];
+            const byDept = {};
+            all.forEach(function (a) {
+                const key = normStr(a.department || 'غير محدد');
+                if (!byDept[key]) {
+                    byDept[key] = { title: a.department || 'بدون إدارة', mails: alertMailsFor(a.department) || ALERT_OFFICE_MAILS, list: [] };
+                }
+                byDept[key].list.push(a);
+            });
+            Object.keys(byDept).forEach(function (k) { groups.push(byDept[k]); });
+            return groups;
+        }
+
+        function alertMessage(g) {
+            const lines = ['السلام عليكم،', '',
+                'تذكير بالمواعيد المحالة على ' + g.title + ' — عددها: ' + g.list.length,
+                'المطلوب: متابعة هذه المواعيد وتحديث حالتها داخل النظام.', '',
+                'الاسم | الموضوع | تاريخ الموعد | الوقت', '-------------------------------------'];
+            g.list.forEach(function (a) {
+                lines.push((a.name || '') + ' | ' + (a.subject || '') + ' | ' + arDate(a.date) + ' | ' + arTime(a.time));
+            });
+            lines.push('', 'المرسل: نظام إدارة المواعيد — أمانة منطقة الرياض',
+                'تاريخ الإرسال: ' + new Date().toLocaleString('en-GB'));
+            return lines.join('\n');
+        }
+
+        function setAlertMsg(i, text, cls) {
+            const el = document.getElementById('alert-msg-' + i);
+            if (el) { el.textContent = text; el.className = 'alert-msg' + (cls ? ' ' + cls : ''); }
+        }
+
+        function renderAlerts() {
+            const esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+            const cfg = emailCfg();
+            const ready = !!(cfg.user && cfg.service && cfg.template);
+            const note = document.getElementById('alerts-note');
+            note.style.display = ready ? 'none' : 'block';
+            note.textContent = 'خدمة الإيميل غير مفعّلة بعد — من الإعدادات ← تبويب «التنبيهات» ضع المفاتيح الثلاثة من EmailJS لتفعيل الإرسال.';
+            document.getElementById('alerts-sub').textContent = 'مجموعات التنبيه: ' + ALERT_GROUPS.length +
+                ' — ترتيب المواعيد حسب التاريخ';
+            document.getElementById('alerts-list').innerHTML = ALERT_GROUPS.map(function (g, i) {
+                return '<div class="alert-row">' +
+                    '<div class="alert-dept">' + esc(g.title) + '<span class="alert-count">' + g.list.length + ' مواعيد</span></div>' +
+                    '<button type="button" class="action-btn" onclick="sendAlertGroup(' + i + ')">📧 إرسال تنبيه</button>' +
+                    '<div class="alert-mails">' + esc(g.mails.join(' | ')) + '</div>' +
+                    '<div class="alert-msg" id="alert-msg-' + i + '"></div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function openAlerts() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            ALERT_GROUPS = alertGroups();
+            renderAlerts();
+            document.getElementById('alerts-overlay').style.display = 'flex';
+        }
+
+        function closeAlerts() {
+            document.getElementById('alerts-overlay').style.display = 'none';
+        }
+
+        function sendAlertGroup(i) {
+            const g = ALERT_GROUPS[i];
+            if (!g) return Promise.resolve();
+            if (!g.list.length) { setAlertMsg(i, 'لا توجد مواعيد لإرسال تنبيه عنها', ''); return Promise.resolve(); }
+            setAlertMsg(i, 'جارٍ الإرسال…', '');
+            const subject = 'تذكير — مواعيد محالة (' + g.list.length + '): ' + g.title;
+            return sendEmailJS(g.mails, subject, alertMessage(g))
+                .then(function () { setAlertMsg(i, 'تم إرسال التنبيه بنجاح ✓', 'ok'); })
+                .catch(function (e) { setAlertMsg(i, 'تعذّر الإرسال: ' + e.message, 'err'); });
+        }
+
+        function sendAllAlerts() {
+            const sub = document.getElementById('alerts-sub');
+            let i = 0;
+            const next = function () {
+                while (i < ALERT_GROUPS.length && !ALERT_GROUPS[i].list.length) i++;
+                if (i >= ALERT_GROUPS.length) {
+                    if (sub) sub.textContent = 'تم إرسال جميع التنبيهات ✓';
+                    return;
+                }
+                sendAlertGroup(i).then(function () { i++; next(); });
+            };
+            next();
+        }
+
+        function testEmail() {
+            const st = document.getElementById('ej-status');
+            saveEmailCfg();
+            if (st) { st.textContent = 'جارٍ إرسال الاختبار…'; st.style.color = 'var(--muted)'; }
+            sendEmailJS(ALERT_OFFICE_MAILS, 'اختبار — نظام إدارة المواعيد',
+                'هذه رسالة اختبار من نظام إدارة المواعيد — أمانة منطقة الرياض.\nتاريخ الإرسال: ' + new Date().toLocaleString('en-GB'))
+                .then(function () { if (st) { st.textContent = 'تم إرسال رسالة الاختبار ✓'; st.style.color = '#7ee0a8'; } })
+                .catch(function (e) { if (st) { st.textContent = 'فشل: ' + e.message; st.style.color = '#ff9b9b'; } });
+        }
+
+        function openAlertsSettings() {
+            closeAlerts();
+            openSettings();
+            switchSettingsTab('alerts');
+        }
+
+        function maybeAutoAlert() {
+            const cfg = emailCfg();
+            if (!cfg.user || !cfg.service || !cfg.template || !cfg.auto) return;
+            const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+            const iso = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+            const now = new Date();
+            const today = iso(now);
+            const soon = [today, iso(new Date(now.getTime() + 86400000))];
+            const stampKey = 'ej_sent_on';
+            if (localStorage.getItem(stampKey) === today) return;
+            const groups = alertGroups().filter(function (g) {
+                return g.list.some(function (a) { return soon.indexOf(a.date || '') !== -1; });
+            });
+            if (!groups.length) return;
+            localStorage.setItem(stampKey, today);
+            let i = 0;
+            const next = function () {
+                if (i >= groups.length) return;
+                const g = groups[i++];
+                const subject = 'تذكير تلقائي — مواعيد اليوم/الغد المحالة (' + g.list.length + '): ' + g.title;
+                sendEmailJS(g.mails, subject, alertMessage(g)).then(next).catch(function () { next(); });
+            };
+            next();
         }
 
         function registerRows() {

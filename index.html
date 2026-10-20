@@ -2797,15 +2797,27 @@
             if (!WA.sid || !WA.token) {
                 return Promise.reject(new Error('بيانات Twilio غير مكتملة — الإعدادات ← تبويب الواتساب'));
             }
-            return fetch('/api/whatsapp', {
+            if (!/^\+[0-9]{8,15}$/.test(String(to).trim())) {
+                return Promise.reject(new Error('رقم غير صالح (الصيغة الدولية): ' + to));
+            }
+            const sid = WA.sid.trim();
+            const auth = 'Basic ' + btoa(unescape(encodeURIComponent(sid + ':' + WA.token.trim())));
+            return fetch('https://api.twilio.com/2010-04-01/Accounts/' + encodeURIComponent(sid) + '/Messages.json', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sid: WA.sid, token: WA.token, from: WA.from || WA_DEFAULT_FROM, to: to, body: body })
+                headers: {
+                    'Authorization': auth,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    To: String(to).trim(),
+                    From: (WA.from || WA_DEFAULT_FROM).trim(),
+                    Body: String(body).slice(0, 1500)
+                }).toString()
             }).then(function (r) {
-                return r.json().catch(function () { return { ok: false, error: 'رد غير صالح من الخادم' }; });
-            }).then(function (j) {
-                if (!j.ok) throw new Error(j.error || 'خطأ غير معروف');
-                return j;
+                return r.json().catch(function () { return {}; }).then(function (j) {
+                    if (!r.ok) throw new Error(j && j.message ? j.message : ('HTTP ' + r.status));
+                    return j;
+                });
             });
         }
 

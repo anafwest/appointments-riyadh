@@ -1252,6 +1252,7 @@
                 <div class="field"><label for="wa-sid">Twilio Account SID</label><input type="text" id="wa-sid" dir="ltr" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" onchange="saveWaCfg()"></div>
                 <div class="field"><label for="wa-token">Twilio Auth Token</label><input type="password" id="wa-token" dir="ltr" placeholder="••••••••••••" onchange="saveWaCfg()"></div>
                 <div class="field"><label for="wa-from">رقم واتساب المرسل (From)</label><input type="text" id="wa-from" dir="ltr" placeholder="+14155238886" onchange="saveWaCfg()"></div>
+                <div class="field"><label for="wa-csid">ContentSid قالب واتساب (مطلوب لسياسة Meta الجديدة)</label><input type="text" id="wa-csid" dir="ltr" placeholder="HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" onchange="saveWaCfg()"></div>
                 <div class="st-dept">أرقام التنبيه — <b>اختيارية</b>: من يترك خانته فارغة لا يصله تنبيه. (جهة المكتب تستقبل تنبيهات كل المواعيد)</div>
                 <table class="register-table" style="margin-top:8px;">
                     <thead><tr><th style="width:42%">الجهة / الإدارة</th><th style="width:44%">رقم الواتساب</th><th style="width:14%">حذف</th></tr></thead>
@@ -2676,6 +2677,7 @@
                             sid: o.sid || '',
                             token: o.token || '',
                             from: o.from || WA_DEFAULT_FROM,
+                            csid: o.csid || '',
                             rows: (Array.isArray(o.rows) && o.rows.length) ? o.rows : def.rows
                         };
                     }
@@ -2734,6 +2736,7 @@
             g('wa-sid').value = WA.sid;
             g('wa-token').value = WA.token;
             g('wa-from').value = WA.from;
+            if (g('wa-csid')) g('wa-csid').value = WA.csid || '';
             g('wa-test-num').value = '';
             renderWaRows();
             const st = g('wa-status');
@@ -2757,6 +2760,7 @@
                 sid: g('wa-sid').value.trim(),
                 token: g('wa-token').value.trim(),
                 from: g('wa-from').value.trim() || WA_DEFAULT_FROM,
+                csid: g('wa-csid') ? g('wa-csid').value.trim() : (WA.csid || ''),
                 rows: waReadRows()
             };
             localStorage.setItem('wa_cfg', JSON.stringify(WA));
@@ -2802,17 +2806,21 @@
             }
             const sid = WA.sid.trim();
             const auth = 'Basic ' + btoa(unescape(encodeURIComponent(sid + ':' + WA.token.trim())));
+            const params = new URLSearchParams();
+            params.set('To', String(to).trim());
+            params.set('From', (WA.from || WA_DEFAULT_FROM).trim());
+            params.set('Body', String(body).slice(0, 1500));
+            if (WA.csid) {
+                params.set('ContentSid', WA.csid.trim());
+                params.set('ContentVariables', JSON.stringify({ '1': String(body).slice(0, 1020) }));
+            }
             return fetch('https://api.twilio.com/2010-04-01/Accounts/' + encodeURIComponent(sid) + '/Messages.json', {
                 method: 'POST',
                 headers: {
                     'Authorization': auth,
                     'Content-Type': 'application/x-www-form-urlencoded'
                 },
-                body: new URLSearchParams({
-                    To: String(to).trim(),
-                    From: (WA.from || WA_DEFAULT_FROM).trim(),
-                    Body: String(body).slice(0, 1500)
-                }).toString()
+                body: params.toString()
             }).then(function (r) {
                 return r.json().catch(function () { return {}; }).then(function (j) {
                     if (!r.ok) throw new Error(j && j.message ? j.message : ('HTTP ' + r.status));

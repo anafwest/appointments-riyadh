@@ -1200,6 +1200,7 @@
                 <button type="button" id="set-tab-users" class="tab active" onclick="switchSettingsTab('users')">المستخدمون</button>
                 <button type="button" id="set-tab-depts" class="tab" onclick="switchSettingsTab('depts')">الإدارات</button>
                 <button type="button" id="set-tab-alerts" class="tab" onclick="switchSettingsTab('alerts')">التنبيهات</button>
+                <button type="button" id="set-tab-wa" class="tab" onclick="switchSettingsTab('wa')">📱 الواتساب</button>
             </div>
             <div id="settings-users">
                 <div class="settings-users-wrap">
@@ -1236,6 +1237,31 @@
                 <button type="button" class="btn-ghost" onclick="testEmail()">📧 إرسال رسالة اختبار</button>
                 <span id="ej-status" class="st-dept"></span>
                 <div class="st-dept" id="ej-mails" style="margin-top:12px;"></div>
+            </div>
+            <div id="settings-wa" style="display:none;">
+                <div class="st-dept">تنبيهات واتساب عبر <b>Twilio</b> (يمرّ عبر وسيط آمن على Cloudflare — رمز الحساب لا يظهر في الصفحة ولا يُخزَّن في الموقع).
+                    الصيغة الدولية للأرقام: <b dir="ltr">+9665XXXXXXXX</b>.</div>
+                <label class="ej-check"><input type="checkbox" id="wa-enabled" onchange="saveWaCfg()"> تفعيل تنبيهات الواتساب (حسب الوضع بالأسفل)</label>
+                <div class="field"><label for="wa-mode">وضع الإرسال</label>
+                    <select id="wa-mode" onchange="saveWaCfg()">
+                        <option value="manual">يدوي فقط — زر إرسال من لوحة التنبيهات</option>
+                        <option value="referral">تلقائي عند التحويل للإدارة</option>
+                        <option value="done">تلقائي عند اكتمال/توقيع الطلب</option>
+                        <option value="both">تلقائي عند التحويل والاكتمال</option>
+                    </select></div>
+                <div class="field"><label for="wa-sid">Twilio Account SID</label><input type="text" id="wa-sid" dir="ltr" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" onchange="saveWaCfg()"></div>
+                <div class="field"><label for="wa-token">Twilio Auth Token</label><input type="password" id="wa-token" dir="ltr" placeholder="••••••••••••" onchange="saveWaCfg()"></div>
+                <div class="field"><label for="wa-from">رقم واتساب المرسل (From)</label><input type="text" id="wa-from" dir="ltr" placeholder="+14155238886" onchange="saveWaCfg()"></div>
+                <div class="st-dept">أرقام التنبيه — <b>اختيارية</b>: من يترك خانته فارغة لا يصله تنبيه. (جهة المكتب تستقبل تنبيهات كل المواعيد)</div>
+                <table class="register-table" style="margin-top:8px;">
+                    <thead><tr><th style="width:42%">الجهة / الإدارة</th><th style="width:44%">رقم الواتساب</th><th style="width:14%">حذف</th></tr></thead>
+                    <tbody id="wa-numbers"></tbody>
+                </table>
+                <button type="button" class="btn-ghost" onclick="waAddRow()">➕ إضافة جهة/رقم</button>
+                <div class="field" style="margin-top:14px;"><label for="wa-test-num">إرسال اختبار إلى رقم</label><input type="text" id="wa-test-num" dir="ltr" placeholder="+9665XXXXXXXX"></div>
+                <button type="button" class="btn-ghost" onclick="testWa()">📱 إرسال رسالة اختبار</button>
+                <button type="button" class="btn-ghost" onclick="saveWaCfg(true)">💾 حفظ إعدادات الواتساب</button>
+                <span id="wa-status" class="st-dept"></span>
             </div>
             <div class="actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
                 <button type="button" class="btn-ghost" onclick="closeSettings()">إغلاق</button>
@@ -1449,6 +1475,7 @@
             db.appointments = Object.keys(byId).map(k => byId[k]);
             if (usersDirty) db.users = USERS;
             if (deptsDirty) db.departments = DEPARTMENTS;
+            if (waDirty) db.wa = WA;
             if (!db.users || !db.users.length) db.users = USERS;
             if (!db.departments || !db.departments.length) db.departments = DEPARTMENTS;
             db.meta = Object.assign({}, db.meta || {}, META);
@@ -1459,6 +1486,10 @@
             META = db.meta || {};
             if (db.users && db.users.length) USERS = db.users;
             if (db.departments && db.departments.length) DEPARTMENTS = db.departments;
+            if (db.wa && typeof db.wa === 'object') {
+                WA = db.wa;
+                try { localStorage.setItem('wa_cfg', JSON.stringify(WA)); } catch (e) {}
+            }
             LAST_REV = db.rev || 0;
             dirtyIds.clear(); dirtyDeletes.clear();
             usersDirty = false; deptsDirty = false; metaDirty = false;
@@ -1734,10 +1765,13 @@
             document.getElementById('set-tab-users').classList.toggle('active', tab === 'users');
             document.getElementById('set-tab-depts').classList.toggle('active', tab === 'depts');
             document.getElementById('set-tab-alerts').classList.toggle('active', tab === 'alerts');
+            document.getElementById('set-tab-wa').classList.toggle('active', tab === 'wa');
             document.getElementById('settings-users').style.display = tab === 'users' ? 'block' : 'none';
             document.getElementById('settings-depts').style.display = tab === 'depts' ? 'block' : 'none';
             document.getElementById('settings-alerts').style.display = tab === 'alerts' ? 'block' : 'none';
+            document.getElementById('settings-wa').style.display = tab === 'wa' ? 'block' : 'none';
             if (tab === 'alerts') loadEmailCfgIntoForm();
+            if (tab === 'wa') loadWaIntoForm();
         }
 
         function deptOptionsHtml(selected) {
@@ -2118,20 +2152,26 @@
                 status: document.getElementById('status').value.trim()
             };
 
+            let savedWa = null;
+            let prevDeptWa = '';
             if (id) {
                 const idx = appointments.findIndex(a => a.id === Number(id));
                 if (idx !== -1) {
+                    prevDeptWa = appointments[idx].department || '';
                     appointments[idx] = { ...appointments[idx], ...data };
+                    savedWa = appointments[idx];
                 }
             } else {
                 data.id = Date.now();
                 appointments.push(data);
+                savedWa = data;
             }
 
             saveAppointments(appointments);
             resetForm();
             render();
             alert('تم حفظ الموعد بنجاح');
+            if (savedWa && savedWa.department && normStr(savedWa.department) !== normStr(prevDeptWa)) waNotify('referral', savedWa);
         });
 
         function setFormFieldsDisabled(disabled) {
@@ -2162,6 +2202,7 @@
             resetForm();
             render();
             alert('تم حفظ حالة الطلب');
+            if (waDoneStatus(val)) waNotify('done', appointments[idx]);
         }
 
         function resetForm() {
@@ -2522,10 +2563,13 @@
             document.getElementById('alerts-sub').textContent = 'مجموعات التنبيه: ' + ALERT_GROUPS.length +
                 ' — ترتيب المواعيد حسب التاريخ';
             document.getElementById('alerts-list').innerHTML = ALERT_GROUPS.map(function (g, i) {
+                const waNums = groupWaNums(g);
                 return '<div class="alert-row">' +
                     '<div class="alert-dept">' + esc(g.title) + '<span class="alert-count">' + g.list.length + ' مواعيد</span></div>' +
                     '<button type="button" class="action-btn" onclick="sendAlertGroup(' + i + ')">📧 إرسال تنبيه</button>' +
+                    (waNums.length ? '<button type="button" class="btn-ghost" onclick="sendAlertWa(' + i + ')">📱 إرسال واتساب</button>' : '') +
                     '<div class="alert-mails">' + esc(g.mails.join(' | ')) + '</div>' +
+                    (waNums.length ? '<div class="alert-mails">واتساب: ' + esc(waNums.join(' | ')) + '</div>' : '') +
                     '<div class="alert-msg" id="alert-msg-' + i + '"></div>' +
                     '</div>';
             }).join('');
@@ -2606,6 +2650,226 @@
                 sendEmailJS(g.mails, subject, alertMessage(g)).then(next).catch(function () { next(); });
             };
             next();
+        }
+
+        const WA_DEFAULT_FROM = '+14155238886';
+        let waDirty = false;
+
+        function loadWaCfg() {
+            const def = {
+                enabled: false, mode: 'manual', sid: '', token: '', from: WA_DEFAULT_FROM,
+                rows: [
+                    { label: 'مكتب المدير العام', num: '' },
+                    { label: 'إدارة رخص البناء', num: '' },
+                    { label: 'إدارة الرخص التجارية والاستثمارية', num: '' },
+                    { label: 'إدارة شؤون الأراضي', num: '' }
+                ]
+            };
+            try {
+                const raw = localStorage.getItem('wa_cfg');
+                if (raw) {
+                    const o = JSON.parse(raw);
+                    if (o && typeof o === 'object') {
+                        return {
+                            enabled: !!o.enabled,
+                            mode: o.mode || 'manual',
+                            sid: o.sid || '',
+                            token: o.token || '',
+                            from: o.from || WA_DEFAULT_FROM,
+                            rows: (Array.isArray(o.rows) && o.rows.length) ? o.rows : def.rows
+                        };
+                    }
+                }
+            } catch (e) {}
+            return def;
+        }
+        let WA = loadWaCfg();
+
+        function waEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+        function waNormNum(n) { return String(n == null ? '' : n).replace(/[^0-9]/g, ''); }
+
+        function renderWaRows() {
+            const tb = document.getElementById('wa-numbers');
+            if (!tb) return;
+            tb.innerHTML = WA.rows.map(function (r, i) {
+                return '<tr>' +
+                    '<td><input type="text" value="' + waEsc(r.label) + '" data-wa-f="label" data-i="' + i + '"></td>' +
+                    '<td><input type="text" dir="ltr" placeholder="+9665XXXXXXXX" value="' + waEsc(r.num) + '" data-wa-f="num" data-i="' + i + '"></td>' +
+                    '<td style="text-align:center;"><button type="button" class="btn-ghost" onclick="waRemoveRow(' + i + ')">🗑️</button></td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        function waReadRows() {
+            const tb = document.getElementById('wa-numbers');
+            const rows = [];
+            if (!tb) return rows;
+            Array.prototype.slice.call(tb.querySelectorAll('tr')).forEach(function (tr) {
+                const l = tr.querySelector('[data-wa-f="label"]');
+                const n = tr.querySelector('[data-wa-f="num"]');
+                if (!l || !n) return;
+                rows.push({ label: l.value.trim(), num: n.value.trim() });
+            });
+            return rows;
+        }
+
+        function waAddRow() {
+            WA.rows = waReadRows();
+            WA.rows.push({ label: '', num: '' });
+            renderWaRows();
+        }
+
+        function waRemoveRow(i) {
+            WA.rows = waReadRows();
+            WA.rows.splice(i, 1);
+            renderWaRows();
+        }
+
+        function loadWaIntoForm() {
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('wa-enabled')) return;
+            WA = loadWaCfg();
+            g('wa-enabled').checked = WA.enabled;
+            g('wa-mode').value = WA.mode;
+            g('wa-sid').value = WA.sid;
+            g('wa-token').value = WA.token;
+            g('wa-from').value = WA.from;
+            g('wa-test-num').value = '';
+            renderWaRows();
+            const st = g('wa-status');
+            if (st) {
+                if (WA.sid && WA.token) {
+                    st.textContent = WA.enabled ? 'الخدمة مفعّلة ✓' : 'البيانات محفوظة — التفعيل مغلق حاليًا';
+                    st.style.color = WA.enabled ? '#7ee0a8' : '#f0ad4e';
+                } else {
+                    st.textContent = 'أدخل Account SID و Auth Token ثم احفظ — الإرسال لا يعمل بدونهما';
+                    st.style.color = '#f0ad4e';
+                }
+            }
+        }
+
+        function saveWaCfg(showMsg) {
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('wa-enabled')) return;
+            WA = {
+                enabled: g('wa-enabled').checked,
+                mode: g('wa-mode').value,
+                sid: g('wa-sid').value.trim(),
+                token: g('wa-token').value.trim(),
+                from: g('wa-from').value.trim() || WA_DEFAULT_FROM,
+                rows: waReadRows()
+            };
+            localStorage.setItem('wa_cfg', JSON.stringify(WA));
+            waDirty = true;
+            scheduleSync();
+            const st = g('wa-status');
+            if (st) { st.textContent = 'تم حفظ إعدادات الواتساب ✓' + (showMsg ? '' : ''); st.style.color = '#7ee0a8'; }
+        }
+
+        function waNumsFor(deptName) {
+            const key = normStr(deptName || '');
+            const out = [];
+            if (!key) return out;
+            WA.rows.forEach(function (r) {
+                const raw = (r.num || '').trim();
+                const lbl = normStr(r.label || '');
+                if (!waNormNum(raw) || !lbl) return;
+                if (/مكتب|المدير|مدير عام/.test(lbl)) return;
+                if (lbl.indexOf(key) !== -1 || key.indexOf(lbl) !== -1) out.push(raw);
+            });
+            return out;
+        }
+
+        function waOfficeNums() {
+            return WA.rows.filter(function (r) {
+                return /مكتب|المدير|director office/.test(normStr(r.label || '')) && waNormNum(r.num || '');
+            }).map(function (r) { return (r.num || '').trim(); });
+        }
+
+        function groupWaNums(g) {
+            const office = waOfficeNums();
+            if (!g || !g.title) return office;
+            if (/مكتب|المدير/.test(normStr(g.title))) return office;
+            return waNumsFor(g.title).concat(office);
+        }
+
+        function waSend(to, body) {
+            if (!WA.sid || !WA.token) {
+                return Promise.reject(new Error('بيانات Twilio غير مكتملة — الإعدادات ← تبويب الواتساب'));
+            }
+            return fetch('/api/whatsapp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sid: WA.sid, token: WA.token, from: WA.from || WA_DEFAULT_FROM, to: to, body: body })
+            }).then(function (r) {
+                return r.json().catch(function () { return { ok: false, error: 'رد غير صالح من الخادم' }; });
+            }).then(function (j) {
+                if (!j.ok) throw new Error(j.error || 'خطأ غير معروف');
+                return j;
+            });
+        }
+
+        function waBodyReferral(a) {
+            return 'تنبيه: موعد محال على ' + (a.department || 'غير محدد') + '\n' +
+                'الاسم: ' + (a.name || '') + '\nالموضوع: ' + (a.subject || '') + '\n' +
+                'التاريخ: ' + arDate(a.date) + ' — ' + arTime(a.time) + '\nالرقم: ' + (a.number || '');
+        }
+
+        function waBodyDone(a) {
+            return 'اكتمل إجراء موعد:\n' +
+                'الاسم: ' + (a.name || '') + '\nالموضوع: ' + (a.subject || '') + '\n' +
+                'التاريخ: ' + arDate(a.date) + ' — ' + arTime(a.time) + '\n' +
+                'الحالة: ' + (a.status || '') + '\nالرقم: ' + (a.number || '');
+        }
+
+        function waDoneStatus(v) {
+            return /منجز|مكتمل|منتهي|موق|اعتمد|مؤرشف/.test(normStr(v || ''));
+        }
+
+        function waNotify(event, a) {
+            if (!WA.enabled || !a) return;
+            const mode = WA.mode || 'manual';
+            const want = mode === 'both' || (mode === 'referral' && event === 'referral') || (mode === 'done' && event === 'done');
+            if (!want) return;
+            const body = event === 'done' ? waBodyDone(a) : waBodyReferral(a);
+            const seen = {};
+            const nums = groupWaNums({ title: a.department || '' }).filter(function (n) {
+                const k = waNormNum(n);
+                if (!k || seen[k]) return false;
+                seen[k] = true;
+                return true;
+            });
+            nums.forEach(function (n) {
+                waSend(n, body).catch(function (e) { console.warn('تنبيه واتساب:', n, e.message || e); });
+            });
+        }
+
+        function sendAlertWa(i) {
+            const g = ALERT_GROUPS[i];
+            if (!g) return;
+            const nums = groupWaNums(g).filter(function (n) { return waNormNum(n); });
+            if (!nums.length) { setAlertMsg(i, 'لا توجد أرقام واتساب مضبوطة — الإعدادات ← تبويب الواتساب', ''); return; }
+            const body = 'تذكير — مواعيد محالة (' + g.list.length + ') على ' + g.title + '\n' +
+                g.list.slice(0, 20).map(function (a) {
+                    return '• ' + (a.name || '') + ' | ' + (a.subject || '') + ' | ' + arDate(a.date);
+                }).join('\n') +
+                (g.list.length > 20 ? '\n… و' + (g.list.length - 20) + ' مواعيد أخرى' : '');
+            setAlertMsg(i, 'جارٍ إرسال الواتساب…', '');
+            Promise.all(nums.map(function (n) { return waSend(n, body); }))
+                .then(function () { setAlertMsg(i, 'تم إرسال الواتساب إلى ' + nums.length + ' رقم ✓', 'ok'); })
+                .catch(function (e) { setAlertMsg(i, 'تعذّر إرسال الواتساب: ' + e.message, 'err'); });
+        }
+
+        function testWa() {
+            saveWaCfg();
+            const g = function (id) { return document.getElementById(id); };
+            const st = g('wa-status');
+            const picked = g('wa-test-num').value.trim() || (WA.rows.map(function (r) { return (r.num || '').trim(); }).filter(Boolean)[0] || '');
+            if (!picked) { if (st) { st.textContent = 'حدد رقمًا للتجربة أولًا'; st.style.color = '#ff9b9b'; } return; }
+            if (st) { st.textContent = 'جارٍ إرسال رسالة الاختبار…'; st.style.color = 'var(--muted)'; }
+            waSend(picked, 'رسالة اختبار من نظام إدارة المواعيد — أمانة منطقة الرياض ✓')
+                .then(function () { if (st) { st.textContent = 'تم الإرسال بنجاح إلى ' + picked + ' ✓'; st.style.color = '#7ee0a8'; } })
+                .catch(function (e) { if (st) { st.textContent = 'فشل: ' + e.message; st.style.color = '#ff9b9b'; } });
         }
 
         function registerRows() {
@@ -2924,6 +3188,7 @@ ${bodyRows}
             a.signedAt = new Date().toISOString();
             saveAppointments(appointments);
             render();
+            waNotify('done', a);
         }
 
         function toggleDiscussion(id) {

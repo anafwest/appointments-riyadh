@@ -2104,14 +2104,23 @@
                 text: txt,
                 at: new Date().toISOString()
             });
-            appointments[idx].withOffice = !!(currentUser && currentUser.role === 'dept');
-            appointments[idx].toDeptNote = !!(currentUser && currentUser.role === 'admin');
+            if (currentUser && currentUser.role === 'admin') {
+                appointments[idx].withOffice = false;
+                appointments[idx].toDeptNote = true;
+                appointments[idx].completed = false;
+                appointments[idx].returnedBy = currentUser.name;
+                appointments[idx].returnedAt = new Date().toISOString();
+                appointments[idx].statementSent = true;
+            } else {
+                appointments[idx].withOffice = true;
+                appointments[idx].toDeptNote = false;
+            }
             saveAppointments(appointments);
             closeThread();
             render();
             alert(currentUser && currentUser.role === 'dept'
                 ? 'تم إرسال الطلب للمكتب مع ملاحظتك — الموعد تحت الإجراء'
-                : 'تم إرسال الملاحظة وإعادة الطلب للإدارة — تحت الإجراء');
+                : 'تم إرسال الإيضاح وإعادة الطلب للإدارة — تحت الإجراء');
         }
 
         function saveOpinion() {

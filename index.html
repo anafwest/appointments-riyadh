@@ -1408,7 +1408,11 @@
 
         async function ghGetDb() {
             const r = await fetch(GH_API + '?ref=' + GH_BRANCH + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' });
-            if (r.status === 404) { LAST_SHA = null; return { appointments: [], users: [], departments: [], meta: {}, rev: 0 }; }
+            if (r.status === 404) {
+                if (LAST_REV || appointments.length) throw new Error('قاعدة البيانات غير متاحة مؤقتًا (404) — تم تجاهل هذا التحديث');
+                LAST_SHA = null;
+                return { appointments: [], users: [], departments: [], meta: {}, rev: 0 };
+            }
             if (!r.ok) throw new Error('HTTP ' + r.status);
             const j = await r.json();
             LAST_SHA = j.sha;
@@ -1419,8 +1423,9 @@
                 const bj = await br.json();
                 content = bj.content;
             }
-            let db = {};
-            try { db = JSON.parse(b64DecodeUnicode(content || '')); } catch (e) { db = {}; }
+            let db = null;
+            try { db = JSON.parse(b64DecodeUnicode(content || '')); } catch (e) { db = null; }
+            if (!db || typeof db !== 'object' || Array.isArray(db)) throw new Error('رد غير مكتمل من GitHub — تم تجاهل هذا التحديث (حماية من فقدان البيانات)');
             db.appointments = db.appointments || [];
             db.users = db.users || [];
             db.departments = db.departments || [];
@@ -1429,8 +1434,19 @@
             return db;
         }
 
+        let PUT_PUSHED = null;
+
         async function ghPutDb(db, message) {
-            const body = { message: message || 'تحديث بيانات', content: b64EncodeUnicode(JSON.stringify(db)), branch: GH_BRANCH };
+            const payload = JSON.stringify(db);
+            PUT_PUSHED = {
+                appointments: {},
+                users: JSON.stringify(db.users || null),
+                departments: JSON.stringify(db.departments || null),
+                wa: JSON.stringify(db.wa || null),
+                meta: JSON.stringify(db.meta || null)
+            };
+            (db.appointments || []).forEach(function (a) { PUT_PUSHED.appointments[a.id] = JSON.stringify(a); });
+            const body = { message: message || 'تحديث بيانات', content: b64EncodeUnicode(payload), branch: GH_BRANCH };
             if (LAST_SHA) body.sha = LAST_SHA;
             const r = await fetch(GH_API, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()), body: JSON.stringify(body) });
             if (r.status === 409 || r.status === 422) { const e = new Error('conflict'); e.conflict = true; throw e; }
@@ -1501,36 +1517,62 @@
         }
 
         function adoptDb(db) {
+            const pushed = (typeof PUT_PUSHED === 'object' && PUT_PUSHED) ? PUT_PUSHED : null;
+            const usersChanged = pushed ? (pushed.users !== JSON.stringify(USERS || null)) : false;
+            const deptsChanged = pushed ? (pushed.departments !== JSON.stringify(DEPARTMENTS || null)) : false;
+            const waChanged = pushed ? (pushed.wa !== JSON.stringify(WA || null)) : false;
+            const metaChanged = pushed ? (pushed.meta !== JSON.stringify(META || null)) : false;
+
             appointments = db.appointments || [];
-            META = db.meta || {};
-            if (db.users && db.users.length) USERS = db.users;
-            if (db.departments && db.departments.length) DEPARTMENTS = db.departments;
-            if (db.wa && typeof db.wa === 'object') {
-                WA = db.wa;
-                try { localStorage.setItem('wa_cfg', JSON.stringify(WA)); } catch (e) {}
-            }
+            META = Object.assign({}, db.meta || {}, metaChanged ? (META || {}) : {});
+            if (usersChanged) { usersDirty = true; }
+            else { usersDirty = false; if (db.users && db.users.length) USERS = db.users; }
+            if (deptsChanged) { deptsDirty = true; }
+            else { deptsDirty = false; if (db.departments && db.departments.length) DEPARTMENTS = db.departments; }
+            if (waChanged) { waDirty = true; }
+            else { waDirty = false; if (db.wa && typeof db.wa === 'object') { WA = db.wa; try { localStorage.setItem('wa_cfg', JSON.stringify(WA)); } catch (e) {} } }
+            metaDirty = metaChanged;
             LAST_REV = db.rev || 0;
-            dirtyIds.clear(); dirtyDeletes.clear();
-            usersDirty = false; deptsDirty = false; metaDirty = false;
+
             LAST_SYNCED = {};
-            appointments.forEach(a => { LAST_SYNCED[a.id] = JSON.stringify(a); });
+            if (pushed) {
+                Object.keys(pushed.appointments).forEach(function (k) { LAST_SYNCED[k] = pushed.appointments[k]; });
+            } else {
+                appointments.forEach(function (a) { LAST_SYNCED[a.id] = JSON.stringify(a); });
+            }
+            dirtyIds.clear(); dirtyDeletes.clear();
+            markDirtyByDiff();
+            if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) scheduleSync();
             renderDeptOptions();
             render();
             if (document.getElementById('settings-overlay').style.display === 'flex') { renderUsersTable(); renderDeptsList(); }
         }
 
+        let polling = false;
+
         async function poll() {
-            if (!GH_TOKEN || document.hidden || syncing) return;
+            if (!GH_TOKEN || document.hidden || syncing || polling) return;
             if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty) return;
+            polling = true;
             try {
                 const db = await ghGetDb();
                 if ((db.rev || 0) === LAST_REV) return;
+                if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty) return;
                 applyRemote(db);
-            } catch (e) {}
+            } catch (e) {
+                console.warn('poll skipped:', e.message || e);
+            } finally {
+                polling = false;
+            }
         }
 
         function applyRemote(db) {
-            appointments = db.appointments || [];
+            const incoming = db.appointments || [];
+            if (!incoming.length && appointments.length) {
+                console.warn('تم تجاهل تحديث فارغ من GitHub (حماية من اختفاء البيانات)');
+                return;
+            }
+            appointments = incoming;
             META = db.meta || {};
             LAST_REV = db.rev || 0;
             LAST_SYNCED = {};

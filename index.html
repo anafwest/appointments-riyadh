@@ -400,7 +400,7 @@
         .gh-status { font-size: 0.8em; color: var(--muted); margin-bottom: 10px; line-height: 1.7; text-align: center; }
         .gh-connect input { width: 100%; }
 
-        #statement-overlay, #opinion-overlay, #files-overlay, #settings-overlay, #register-overlay, #alerts-overlay {
+        #statement-overlay, #opinion-overlay, #thread-overlay, #files-overlay, #settings-overlay, #register-overlay, #alerts-overlay {
             display: none;
             position: fixed;
             inset: 0;
@@ -447,6 +447,11 @@
         .statement-card .st-locked-note { background: #fff3cd; border: 1px solid #f0ad4e; color: #7a5b00; border-radius: 8px; padding: 8px 12px; font-size: 0.85em; margin-bottom: 12px; line-height: 1.6; }
         .statement-card textarea { min-height: 120px; }
         .statement-card .actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+        .statement-card .th-history { max-height: 240px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 12px; background: rgba(0, 0, 0, 0.15); }
+        .th-msg { border-bottom: 1px dashed var(--line); padding: 8px 4px; font-size: 0.9em; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+        .th-msg:last-child { border-bottom: 0; }
+        .th-msg .th-meta { color: var(--muted); font-size: 0.82em; margin-bottom: 2px; }
+        .th-empty { color: var(--muted); font-size: 0.88em; text-align: center; padding: 10px; }
 
         .register-card { width: 860px; max-width: 100%; max-height: 88vh; overflow-y: auto; }
         .register-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
@@ -1124,6 +1129,19 @@
             </div>
         </div>
 
+        <div id="thread-overlay">
+            <div class="statement-card">
+                <h3>💬 مراسلة مكتب المدير العام</h3>
+                <div class="st-dept" id="th-info"></div>
+                <div class="th-history" id="th-history"></div>
+                <textarea id="th-text" placeholder="اكتب الملاحظة / الإيضاح هنا..."></textarea>
+                <div class="actions">
+                    <button type="button" class="btn-ghost" onclick="closeThread()">إغلاق</button>
+                    <button type="button" class="action-btn" id="th-send-btn" onclick="sendThread()">📤 إرسال</button>
+                </div>
+            </div>
+        </div>
+
         <div id="files-overlay">
             <div class="statement-card">
                 <h3>📎 مرفقات الموعد</h3>
@@ -1642,6 +1660,7 @@
         let stEditingId = null;
         let currentTab = 'active';
         let adminDeptFilter = null;
+        let adminThreadFilter = false;
 
         function baseScoped() {
             if (currentUser && currentUser.role === 'dept') {
@@ -1669,6 +1688,9 @@
             const role = currentUser ? currentUser.role : '';
             if (currentTab === 'done') {
                 return list.filter(isDone);
+            }
+            if (role === 'admin' && adminThreadFilter) {
+                return list.filter(a => a.withOffice);
             }
             if (role === 'dept') {
                 return list.filter(a => !a.completed && !a.statementSent);
@@ -1976,6 +1998,58 @@
         function closeOpinion() {
             document.getElementById('opinion-overlay').style.display = 'none';
             opEditingId = null;
+        }
+
+        let threadEditingId = null;
+
+        function openThread(id) {
+            const a = appointments.find(x => x.id === id);
+            if (!a) return;
+            threadEditingId = id;
+            document.getElementById('th-info').textContent = 'الموعد #' + (a.number || '') + ' — ' + (a.name || '') + ' — ' + (a.department || '');
+            const hist = document.getElementById('th-history');
+            const msgs = Array.isArray(a.thread) ? a.thread : [];
+            hist.innerHTML = msgs.length ? msgs.map(function (m) {
+                const who = m.role === 'admin' ? 'مكتب المدير العام' : (m.role === 'director' ? 'المدير العام' : (m.by || 'الإدارة'));
+                const when = m.at ? new Date(m.at).toLocaleString('en-GB') : '';
+                return '<div class="th-msg"><div class="th-meta">' + escapeHtml(who) + (when ? ' — ' + escapeHtml(when) : '') + '</div>' + escapeHtml(m.text || '') + '</div>';
+            }).join('') : '<div class="th-empty">لا توجد ملاحظات سابقة</div>';
+            document.getElementById('th-text').value = '';
+            const sendBtn = document.getElementById('th-send-btn');
+            const isDept = currentUser && currentUser.role === 'dept';
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (sendBtn) {
+                sendBtn.style.display = (isDept || isAdmin) ? 'inline-block' : 'none';
+                sendBtn.textContent = isDept ? '📤 إرسال الطلب للمكتب' : '📤 إرسال وإعادة الطلب للإدارة';
+            }
+            document.getElementById('thread-overlay').style.display = 'flex';
+        }
+
+        function closeThread() {
+            document.getElementById('thread-overlay').style.display = 'none';
+            threadEditingId = null;
+        }
+
+        function sendThread() {
+            if (threadEditingId == null) return;
+            const txt = document.getElementById('th-text').value.trim();
+            if (!txt) { alert('اكتب الملاحظة أولاً'); return; }
+            const idx = appointments.findIndex(x => x.id === threadEditingId);
+            if (idx === -1) { closeThread(); return; }
+            if (!Array.isArray(appointments[idx].thread)) appointments[idx].thread = [];
+            appointments[idx].thread.push({
+                by: currentUser ? currentUser.name : '',
+                role: currentUser ? currentUser.role : '',
+                text: txt,
+                at: new Date().toISOString()
+            });
+            appointments[idx].withOffice = !!(currentUser && currentUser.role === 'dept');
+            saveAppointments(appointments);
+            closeThread();
+            render();
+            alert(currentUser && currentUser.role === 'dept'
+                ? 'تم إرسال الطلب للمكتب مع ملاحظتك — الموعد تحت الإجراء'
+                : 'تم إرسال الملاحظة وإعادة الطلب للإدارة — تحت الإجراء');
         }
 
         function saveOpinion() {
@@ -2293,6 +2367,7 @@
                             <span class="appt-num">#${escapeHtml(a.number)}</span>
                             <span class="appt-name">${escapeHtml(a.name)}</span>
                             <span class="appt-dept">${escapeHtml(a.department) || '-'}</span>
+                            ${a.withOffice ? '<span class="badge" style="background:#fff3cd;color:#8a6d3b;">📨 مع المكتب</span>' : ''}
                             ${a.signed ? '<span class="badge" style="background:#e6f4ea;color:#1e7e34;">موقّع</span>' : ''}
                             ${a.forDiscussion ? '<span class="badge" style="background:#fff3cd;color:#8a6d3b;">للمناقشة</span>' : ''}
                             <span class="appt-actions">${actionButtons(a)}</span>
@@ -2319,17 +2394,26 @@
 
         function statShowAll() {
             adminDeptFilter = null;
+            adminThreadFilter = false;
             switchTab('active');
         }
 
         function statDeptUnder(d) {
+            adminThreadFilter = false;
             adminDeptFilter = (adminDeptFilter && normStr(adminDeptFilter) === normStr(d)) ? null : d;
             switchTab('active');
         }
 
         function statShowDone() {
             adminDeptFilter = null;
+            adminThreadFilter = false;
             switchTab('done');
+        }
+
+        function statShowThread() {
+            adminDeptFilter = null;
+            adminThreadFilter = !adminThreadFilter;
+            switchTab('active');
         }
 
         function stageChips(a) {
@@ -2337,6 +2421,8 @@
             if (a.statementSent || a.completed) chips.push('<span class="chip chip-ok">إفادة</span>');
             if (a.directorOpinion) chips.push('<span class="chip chip-info">رأي</span>');
             if (a.files && a.files.length) chips.push('<span class="chip chip-info">📎 ' + a.files.length + '</span>');
+            if (a.thread && a.thread.length) chips.push('<span class="chip chip-warn">💬 ' + a.thread.length + '</span>');
+            if (a.withOffice) chips.push('<span class="chip chip-warn">مع المكتب</span>');
             if (a.forDiscussion) chips.push('<span class="chip chip-warn">مناقشة</span>');
             if (a.signed) chips.push('<span class="chip chip-ok">توقيع</span>');
             if (a.status) chips.push('<span class="chip chip-ok">حالة</span>');
@@ -2349,6 +2435,7 @@
                 deptBtns += `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
                 deptBtns += `<button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                         <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>`;
+                deptBtns += `<button class="row-btn" title="إعادة الطلب للمكتب مع ملاحظة" onclick="openThread(${a.id})" style="${a.withOffice ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">↩️</button>`;
                 return deptBtns;
             }
             if (currentUser && currentUser.role === 'director') {
@@ -2358,11 +2445,13 @@
                 if (a.signed) {
                     btns += `<button class="row-btn" title="موقّع (اضغط لإلغاء التوقيع)" onclick="signAppointment(${a.id})" style="background:#e6f4ea;border-color:#1e7e34;">✅</button>`;
                     btns += `<button class="row-btn" title="تحرير الإفادة" onclick="openStatement(${a.id})">✍️</button>`;
-                } else {
+                    btns += `<button class="row-btn" title="إعادة الإفادة (تعود للإدارة تحت الإجراء)" onclick="returnToStatement(${a.id})">↩️</button>`;
+                    btns += `<button class="row-btn" title="${a.forDiscussion ? 'إلغاء المناقشة' : 'للمناقشة (تعود للإدارة تحت الإجراء)'}" onclick="toggleDiscussion(${a.id})" style="${a.forDiscussion ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">💬</button>`;
+                } else if (a.directorOpinion) {
                     btns += `<button class="row-btn" title="توقيع المدير العام" onclick="signAppointment(${a.id})">✍️</button>`;
+                    btns += `<button class="row-btn" title="إعادة الإفادة (تعود للإدارة تحت الإجراء)" onclick="returnToStatement(${a.id})">↩️</button>`;
+                    btns += `<button class="row-btn" title="للمناقشة (تعود للإدارة تحت الإجراء)" onclick="toggleDiscussion(${a.id})">💬</button>`;
                 }
-                btns += `<button class="row-btn" title="إعادة الإفادة" onclick="returnToStatement(${a.id})">↩️</button>`;
-                btns += `<button class="row-btn" title="${a.forDiscussion ? 'إلغاء المناقشة' : 'للمناقشة'}" onclick="toggleDiscussion(${a.id})" style="${a.forDiscussion ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">💬</button>`;
                 return btns;
             }
             if (currentUser && currentUser.role === 'admin') {
@@ -2375,7 +2464,8 @@
                     <button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                     <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>
                     <button class="row-btn" title="تعديل" onclick="editAppointment(${a.id})">✏️</button>
-                    <button class="row-btn" title="حذف" onclick="deleteAppointment(${a.id})">🗑️</button>`;
+                    <button class="row-btn" title="حذف" onclick="deleteAppointment(${a.id})">🗑️</button>
+                    <button class="row-btn" title="💬 مراسلة الإدارة — إيضاحات وردود" onclick="openThread(${a.id})" style="${a.withOffice ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">📨</button>`;
             }
             return ``;
         }
@@ -2411,13 +2501,15 @@
                     { name: 'إدارة شؤون الأراضي', label: 'شؤون الأراضي تحت الإجراء', icon: '🗺️' }
                 ];
                 const under = list.filter(a => !isDone(a));
-                let html = statBox(total, 'إجمالي المواعيد', '📋', !adminDeptFilter && currentTab !== 'done', 'statShowAll()');
+                let html = statBox(total, 'إجمالي المواعيد', '📋', !adminDeptFilter && !adminThreadFilter && currentTab !== 'done', 'statShowAll()');
                 depts.forEach(d => {
                     const cnt = under.filter(a => normStr(a.department) === normStr(d.name)).length;
                     const active = adminDeptFilter && normStr(adminDeptFilter) === normStr(d.name);
                     html += statBox(cnt, d.label, d.icon, active, "statDeptUnder('" + d.name.replace(/'/g, "\\'") + "')");
                 });
-                html += statBox(done, 'إجمالي الطلبات المنجزة', '✅', !adminDeptFilter && currentTab === 'done', 'statShowDone()');
+                const threadCnt = list.filter(a => a.withOffice).length;
+                html += statBox(threadCnt, '📨 طلبات إيضاحات من الإدارات', '📨', adminThreadFilter && currentTab === 'active', 'statShowThread()');
+                html += statBox(done, 'إجمالي الطلبات المنجزة', '✅', !adminDeptFilter && !adminThreadFilter && currentTab === 'done', 'statShowDone()');
                 grid.innerHTML = html;
             } else {
                 const boxTotal = `<div class="stat-box"><div class="stat-number">${total}</div><div class="stat-label">إجمالي المواعيد</div></div>`;

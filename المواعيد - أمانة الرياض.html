@@ -239,6 +239,31 @@
 
         .table-wrap { overflow-x: auto; }
 
+        .appt-cards { display: flex; flex-direction: column; gap: 12px; }
+        .appt-card {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px 16px;
+            transition: .15s;
+        }
+        .appt-card:hover { border-color: var(--green-400); background: rgba(9, 166, 108, 0.06); }
+        .appt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .appt-num { font-weight: 700; color: var(--mint); background: rgba(0, 106, 70, 0.16); padding: 3px 12px; border-radius: 20px; font-size: 0.9em; }
+        .appt-name { font-weight: 700; font-size: 1.05em; }
+        .appt-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-inline-start: auto; }
+        .appt-meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--muted); font-size: 0.88em; }
+        .appt-meta .mi { white-space: nowrap; }
+        .appt-meta .mi b { color: var(--text); font-weight: 600; margin-inline-end: 4px; }
+        .appt-line { font-size: 0.92em; line-height: 1.6; }
+        .appt-line b { color: var(--mint); font-weight: 700; margin-inline-end: 4px; }
+        .appt-dept { color: var(--green-400); font-weight: 600; }
+        .appt-stages { display: flex; flex-wrap: wrap; gap: 4px; }
+        .appt-empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+
         .badge {
             display: inline-block;
             padding: 4px 12px;
@@ -375,7 +400,7 @@
         .gh-status { font-size: 0.8em; color: var(--muted); margin-bottom: 10px; line-height: 1.7; text-align: center; }
         .gh-connect input { width: 100%; }
 
-        #statement-overlay, #opinion-overlay, #files-overlay, #settings-overlay {
+        #statement-overlay, #opinion-overlay, #thread-overlay, #files-overlay, #settings-overlay, #register-overlay, #alerts-overlay {
             display: none;
             position: fixed;
             inset: 0;
@@ -419,8 +444,33 @@
 
         .statement-card h3 { color: var(--mint); margin-bottom: 6px; }
         .statement-card .st-dept { color: var(--muted); font-size: 0.9em; margin-bottom: 14px; }
+        .statement-card .st-locked-note { background: #fff3cd; border: 1px solid #f0ad4e; color: #7a5b00; border-radius: 8px; padding: 8px 12px; font-size: 0.85em; margin-bottom: 12px; line-height: 1.6; }
         .statement-card textarea { min-height: 120px; }
         .statement-card .actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
+        .statement-card .th-history { max-height: 240px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 12px; background: rgba(0, 0, 0, 0.15); }
+        .th-msg { border-bottom: 1px dashed var(--line); padding: 8px 4px; font-size: 0.9em; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
+        .th-msg:last-child { border-bottom: 0; }
+        .th-msg .th-meta { color: var(--muted); font-size: 0.82em; margin-bottom: 2px; }
+        .th-empty { color: var(--muted); font-size: 0.88em; text-align: center; padding: 10px; }
+
+        .register-card { width: 860px; max-width: 100%; max-height: 88vh; overflow-y: auto; }
+        .register-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        .register-table th, .register-table td { border: 1px solid var(--line); padding: 8px 10px; font-size: 0.92em; text-align: right; vertical-align: top; word-break: break-word; }
+        .register-table th { background: rgba(0, 106, 70, 0.2); color: var(--mint); font-weight: 700; }
+        .register-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.04); }
+        .register-table td.register-empty { text-align: center; color: var(--muted); padding: 20px 10px; }
+
+        .alerts-card { width: 800px; max-width: 100%; max-height: 88vh; overflow-y: auto; }
+        .alert-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: rgba(255, 255, 255, 0.04); }
+        .alert-row .alert-dept { font-weight: 700; color: var(--mint); }
+        .alert-row .alert-count { display: inline-block; margin-inline-start: 8px; padding: 2px 9px; border-radius: 20px; background: rgba(255, 255, 255, 0.08); color: var(--muted); font-size: 0.8em; font-weight: 600; }
+        .alert-row .alert-mails { flex: 1 1 100%; color: var(--muted); font-size: 0.78em; word-break: break-all; direction: ltr; text-align: left; }
+        .alert-row .alert-msg { flex: 1 1 100%; font-size: 0.82em; color: var(--muted); }
+        .alert-row .alert-msg.ok { color: #7ee0a8; }
+        .alert-row .alert-msg.err { color: #ff9b9b; }
+        .ej-check { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: var(--muted); font-size: 0.92em; cursor: pointer; }
+        .ej-check input { width: auto; flex: 0 0 auto; }
+        #ej-status { display: inline-block; margin-inline-start: 10px; }
 
         body:not(.role-director) .col-dir-op { display: none !important; }
 
@@ -428,9 +478,17 @@
         .files-list { max-height: 260px; overflow-y: auto; margin-top: 6px; }
         .file-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; }
         .file-row a { color: var(--mint); text-decoration: none; word-break: break-all; }
+        .file-row .file-name { flex: 1; word-break: break-all; }
+        .file-row .file-actions { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+        a.row-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
         .files-empty { color: var(--muted); text-align: center; padding: 14px; }
 
         body:not(.role-admin) .col-stages { display: none !important; }
+        .stat-box.clickable { cursor: pointer; transition: .15s; }
+        .stat-box.clickable:hover { border-color: var(--green-400); transform: translateY(-2px); }
+        .stat-box.active { background: linear-gradient(45deg, var(--green-400), var(--green-500)); border-color: transparent; }
+        .stat-box.active .stat-number, .stat-box.active .stat-label, .stat-box.active .stat-ico { color: #fff; }
+        .stat-ico { font-size: 1.5em; line-height: 1; margin-bottom: 4px; }
         .chip { display: inline-block; font-size: 0.72em; padding: 2px 7px; border-radius: 20px; margin: 1px; white-space: nowrap; }
         .chip-ok { background: #e6f4ea; color: #1e7e34; }
         .chip-info { background: #e7f1ff; color: #1d4ed8; }
@@ -477,7 +535,16 @@
         .badge-draft { background: rgba(255, 255, 255, 0.12); color: var(--muted); }
         .badge-sent { background: rgba(95, 211, 160, 0.2); color: var(--mint); }
         .done-mark { color: var(--mint); font-weight: 700; }
-    </style>
+            /* حالة الطلب داخل نموذج الموعد: باقي الخانات معطّلة وظاهرة (للقراءة فقط) */
+        #appointment-form.status-mode .field:not(.status-only) input,
+        #appointment-form.status-mode .field:not(.status-only) select,
+        #appointment-form.status-mode .field:not(.status-only) textarea {
+            background: #f1f5f9;
+            color: #475569;
+            -webkit-text-fill-color: #475569;
+            cursor: not-allowed;
+        }
+</style>
     <style id="light-theme">
         :root {
             --text: #12291f;
@@ -614,10 +681,21 @@
             background: #ffffff;
             color: #1a1a1a;
             border-radius: 8px;
-            padding: 28px 32px;
+            padding: 24px 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
             font-family: 'IBM Plex Sans Arabic', 'Segoe UI', Tahoma, sans-serif;
         }
+
+        .tpl-files-full { display: none; }
+        .tpl-file-item { display: flex; flex-direction: column; width: 100%; box-sizing: border-box; }
+        .tpl-file-head { display: flex; align-items: center; gap: 16px; border-bottom: 3px double #006A46; padding-bottom: 10px; }
+        .tpl-file-body { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .tpl-file-body img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .tpl-file-frame { width: 100%; height: 100%; border: 0; background: #fff; }
+        .tpl-file-doc { text-align: center; color: #555; }
+        .tpl-file-ico { font-size: 3.2em; line-height: 1; }
+        .tpl-file-docname { font-weight: 700; color: #006A46; margin-top: 10px; word-break: break-all; }
+        .tpl-file-docnote { color: #888; font-size: 0.85em; margin-top: 6px; }
 
         .tpl-header {
             display: flex;
@@ -680,12 +758,12 @@
             font-size: 0.85em;
         }
 
-        .tpl-grid { width: 100%; border-collapse: collapse; }
-        .tpl-grid td { border: 1px solid #94a3a0; padding: 9px 10px; font-size: 0.92em; white-space: pre-line; }
-        .tpl-grid .lbl { width: 115px; background: #eef7f1; color: #006A46; font-weight: 700; text-align: center; font-size: 0.83em; }
+        .tpl-grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        .tpl-grid td { border: 1px solid #94a3a0; padding: 9px 10px; font-size: 0.84em; white-space: pre-line; overflow-wrap: anywhere; word-break: break-word; vertical-align: top; }
+        .tpl-grid .lbl { width: 115px; background: #eef7f1; color: #006A46; font-weight: 700; text-align: center; font-size: 0.77em; }
 
         .tpl-chk { width: 100%; border-collapse: collapse; margin: 6px 0 2px; }
-        .tpl-chk td { border: 1px solid #94a3a0; padding: 10px 12px; font-size: 0.92em; }
+        .tpl-chk td { border: 1px solid #94a3a0; padding: 10px 12px; font-size: 0.84em; overflow-wrap: anywhere; word-break: break-word; }
 
         .tpl-cb { font-weight: 700; color: #006A46; margin-inline-end: 6px; }
 
@@ -703,6 +781,8 @@
             padding: 12px;
             margin: 6px 0;
             white-space: pre-line;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
 
         .tpl-status-line {
@@ -722,20 +802,29 @@
         }
 
         .tpl-sign img {
-            height: 50px;
-            max-width: 170px;
+            height: 72px;
+            max-width: 230px;
             object-fit: contain;
             display: block;
-            margin: 0 auto 6px;
+            margin: 4px auto 2px;
         }
 
-        .tpl-sign div {
-            border-top: 1px solid #777;
-            padding-top: 6px;
-            color: #444;
-            width: 230px;
+        .tpl-sign-block {
+            width: 290px;
             text-align: center;
             font-size: 0.9em;
+        }
+
+        .tpl-sign-title {
+            color: #006A46;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .tpl-sign-name {
+            padding-top: 4px;
+            color: #333;
+            font-weight: 700;
         }
 
         .tpl-foot {
@@ -750,7 +839,39 @@
         @media print {
             @page { size: A4 portrait; margin: 0; }
             body { background: #ffffff !important; }
-            body > *:not(#template-overlay) { display: none !important; }
+            body > *:not(#template-overlay):not(#register-overlay) { display: none !important; }
+            #register-overlay { display: none !important; }
+            body.print-register #template-overlay { display: none !important; }
+            body.print-register #register-overlay {
+                display: block !important;
+                position: static !important;
+                padding: 0 !important;
+                background: #ffffff !important;
+                overflow: visible !important;
+            }
+            body.print-register .register-card {
+                width: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+                background: #ffffff !important;
+                border: none !important;
+                box-shadow: none !important;
+                backdrop-filter: none !important;
+                padding: 12mm !important;
+            }
+            body.print-register .register-card h3 { color: #006A46 !important; margin-bottom: 4px !important; }
+            body.print-register #reg-subtitle { color: #333 !important; }
+            body.print-register .register-table th {
+                background: #eaf5f0 !important;
+                color: #006A46 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            body.print-register .register-table th,
+            body.print-register .register-table td { border-color: #8a8a8a !important; font-size: 0.85em !important; padding: 6px 8px !important; }
+            body.print-register .register-table tbody tr:nth-child(even) { background: #f6f6f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body.print-register .register-table tr { break-inside: avoid; page-break-inside: avoid; }
+            body.print-register .register-card .actions { display: none !important; }
             #template-overlay {
                 display: block !important;
                 position: static !important;
@@ -760,13 +881,14 @@
             }
             #template-doc {
                 width: 210mm !important;
-                height: 296mm !important;
+                height: auto !important;
+                min-height: 290mm !important;
                 max-width: none !important;
                 margin: 0 !important;
                 border-radius: 0 !important;
                 box-shadow: none !important;
-                padding: 9mm 12mm !important;
-                overflow: hidden !important;
+                padding: 8mm 8mm !important;
+                overflow: visible !important;
                 display: flex !important;
                 flex-direction: column !important;
                 box-sizing: border-box !important;
@@ -775,18 +897,49 @@
             .tpl-header { padding-bottom: 8px !important; }
             .tpl-title { margin: 10px 0 !important; padding: 8px !important; font-size: 1.25em !important; }
             .tpl-sec { margin: 9px 0 4px !important; font-size: 0.95em !important; }
-            .tpl-grid td { padding: 5px 7px !important; font-size: 0.85em !important; }
-            .tpl-chk td { padding: 6px 9px !important; font-size: 0.85em !important; }
+            .tpl-grid td { padding: 5px 7px !important; font-size: 0.77em !important; }
+            .tpl-chk td { padding: 6px 9px !important; font-size: 0.77em !important; }
             .tpl-box { min-height: 32px !important; padding: 7px !important; font-size: 0.88em !important; }
             .tpl-note { margin: 3px 0 1px !important; }
             .tpl-sign { margin-top: auto !important; padding-top: 8px !important; }
             .tpl-foot { margin-top: 10px !important; padding-top: 6px !important; font-size: 0.72em !important; }
 
             #tpl-files { display: none !important; }
-            body.print-files #template-doc { height: auto !important; min-height: 296mm !important; overflow: visible !important; }
-            body.print-files #tpl-files-full { display: block !important; page-break-before: always !important; }
-            body.print-files #tpl-files-full .tpl-file-item { page-break-inside: avoid; margin-bottom: 12px; }
-            body.print-files #tpl-files-full img { max-height: 130mm !important; max-width: 100% !important; }
+            #tpl-files-full { display: none !important; }
+            body.print-files #tpl-files-full { display: block !important; }
+            body.print-files #tpl-files-full .tpl-file-item {
+                break-before: page !important;
+                page-break-before: always !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                width: 210mm !important;
+                height: 290mm !important;
+                box-sizing: border-box !important;
+                padding: 8mm 8mm !important;
+                margin: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                overflow: hidden !important;
+            }
+            body.print-files #tpl-files-full .tpl-file-head { padding-bottom: 8px !important; margin-bottom: 8px !important; }
+            body.print-files #tpl-files-full .tpl-file-head img { height: 54px !important; }
+            body.print-files #tpl-files-full .tpl-file-body {
+                flex: 1 1 auto !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                overflow: hidden !important;
+            }
+            body.print-files #tpl-files-full .tpl-file-body img {
+                max-width: 100% !important;
+                max-height: 100% !important;
+                object-fit: contain !important;
+            }
+            body.print-files #tpl-files-full .tpl-file-body .tpl-file-frame {
+                width: 100% !important;
+                height: 100% !important;
+                border: 0 !important;
+            }
         }
     </style>
 </head>
@@ -798,12 +951,12 @@
             <p>أمانة منطقة الرياض - قطاع الغرب | مكتب مدير عام تنمية المدينة</p>
             <div class="gh-connect" id="gh-connect" style="display:none;">
                 <div class="gh-status" id="gh-status"></div>
-                <input type="password" id="gh-token-input" placeholder="رمز الوصول GitHub Token">
+                <input type="password" id="gh-token-input" placeholder="رمز الوصول GitHub Token" onkeydown="if(event.key==='Enter'){event.preventDefault();connectGh();}">
                 <button type="button" class="action-btn" onclick="connectGh()">ربط النظام</button>
             </div>
             <div id="login-fields">
-                <input type="text" id="login-user" placeholder="اسم المستخدم">
-                <input type="password" id="login-pass" placeholder="كلمة المرور">
+                <input type="text" id="login-user" placeholder="اسم المستخدم" onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
+                <input type="password" id="login-pass" placeholder="كلمة المرور" onkeydown="if(event.key==='Enter'){event.preventDefault();doLogin();}">
                 <button type="button" class="action-btn" onclick="doLogin()">دخول</button>
                 <div class="login-error" id="login-error"></div>
             </div>
@@ -833,24 +986,7 @@
         <p>إضافة ومتابعة المواعيد والافادات ومراحل الإنجاز</p>
     </div>
 
-    <div class="stats-grid">
-        <div class="stat-box">
-            <div class="stat-number" id="stat-total">0</div>
-            <div class="stat-label">إجمالي المواعيد</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number" id="stat-done">0</div>
-            <div class="stat-label">منجز</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number" id="stat-wip">0</div>
-            <div class="stat-label">تحت الإجراء</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-number" id="stat-rate">0%</div>
-            <div class="stat-label">نسبة الإنجاز</div>
-        </div>
-    </div>
+    <div class="stats-grid" id="stats-grid"></div>
 
     <div class="grid">
         <div class="card" id="form-card">
@@ -931,22 +1067,14 @@
                     </div>
                 </div>
 
-                <div class="field">
-                    <label for="attachmentDetails">عدد المرفقات ونوعها</label>
-                    <input type="text" id="attachmentDetails" placeholder="مثال: مرفق واحد - صك الملكية">
-                </div>
-
-                <div class="field">
+                <div class="field status-only">
                     <label for="status">حالة الطلب</label>
-                    <select id="status">
-                        <option value="">-- اختر حالة الطلب --</option>
-                        <optgroup label="تم الحل">
-                            <option>تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب</option>
-                            <option>تم الحل وانهاء الطلب</option>
-                        </optgroup>
-                        <option>الطلب أحيل إلى الإدارة المختصة في القطاع</option>
-                        <option>الطلب خارج اختصاص القطاع</option>
-                    </select>
+                    <input type="text" id="status" list="status-list" placeholder="اختر أو اكتب حالة الطلب" autocomplete="off">
+                    <datalist id="status-list">
+                        <option value="تم الحل وابلاغ المستفيد بتعذر تنفيذ الطلب"></option>
+                        <option value="تم الحل وانهاء الطلب"></option>
+                        <option value="الطلب خارج اختصاص القطاع"></option>
+                    </datalist>
                 </div>
 
                 <button type="submit" class="action-btn full" id="submit-btn">حفظ الموعد</button>
@@ -963,32 +1091,11 @@
                 <input type="text" id="search" class="search" placeholder="🔍 بحث بالرقم أو الاسم أو الموضوع...">
                 <button type="button" id="sign-btn-main" class="action-btn" onclick="openSignature()" style="display:none;">✍️ توقيع المدير العام</button>
                 <button type="button" class="btn-ghost" onclick="exportExcel()">⬇️ تصدير Excel</button>
+                <button type="button" id="register-btn" class="btn-ghost" onclick="openRegister()" style="display:none;">📋 جدول المواعيد</button>
+                <button type="button" id="alerts-btn" class="btn-ghost" onclick="openAlerts()" style="display:none;">🔔 تنبيهات المواعيد</button>
             </div>
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>الرقم</th>
-                            <th>الاسم</th>
-                            <th>رقم الهوية</th>
-                            <th>الموضوع</th>
-                            <th>تاريخ الموعد</th>
-                            <th>وقت الموعد</th>
-                            <th>رقم الجوال</th>
-                            <th>نوع الموعد</th>
-                            <th>الإدارة المختصة</th>
-                            <th>الافادة</th>
-                            <th class="col-dir-op">رأي المدير العام</th>
-                            <th>المرفقات</th>
-                            <th>حالة الطلب</th>
-                            <th class="col-stages">مراحل الطلب</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-body"></tbody>
-                </table>
-            </div>
+            <div class="appt-cards" id="table-body"></div>
         </div>
     </div>
 
@@ -1002,9 +1109,10 @@
                 <h3>افادة الإدارة المختصة</h3>
                 <div class="st-dept" id="st-user-dept"></div>
                 <textarea id="st-text" placeholder="اكتب نص الافادة هنا..."></textarea>
+                <div class="st-locked-note" id="st-locked-note" style="display:none;">🔒 لا يمكن تعديل الإفادة بعد توقيع المدير العام. يمكن للمدير العام فقط التعديل، أو إعادة تحويل الموعد للإدارة لتحرير الإفادة.</div>
                 <div class="actions">
                     <button type="button" class="btn-ghost" onclick="closeStatement()">إغلاق</button>
-                    <button type="button" class="btn-ghost" onclick="saveStatement(false)">💾 حفظ</button>
+                    <button type="button" class="btn-ghost" id="st-save-btn" onclick="saveStatement(false)">💾 حفظ</button>
                     <button type="button" class="action-btn" id="st-send-btn" onclick="saveStatement(true)">📤 إرسال</button>
                 </div>
             </div>
@@ -1017,6 +1125,19 @@
                 <div class="actions">
                     <button type="button" class="btn-ghost" onclick="closeOpinion()">إغلاق</button>
                     <button type="button" class="action-btn" onclick="saveOpinion()">💾 حفظ الرأي</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="thread-overlay">
+            <div class="statement-card">
+                <h3>💬 مراسلة مكتب المدير العام</h3>
+                <div class="st-dept" id="th-info"></div>
+                <div class="th-history" id="th-history"></div>
+                <textarea id="th-text" placeholder="اكتب الملاحظة / الإيضاح هنا..."></textarea>
+                <div class="actions">
+                    <button type="button" class="btn-ghost" onclick="closeThread()">إغلاق</button>
+                    <button type="button" class="action-btn" id="th-send-btn" onclick="sendThread()">📤 إرسال</button>
                 </div>
             </div>
         </div>
@@ -1035,7 +1156,42 @@
             </div>
         </div>
 
-    <div id="sign-overlay">
+        <div id="register-overlay">
+            <div class="statement-card register-card">
+                <h3>📋 جدول المواعيد المسجلة</h3>
+                <div class="st-dept" id="reg-subtitle"></div>
+                <table class="register-table">
+                    <thead>
+                        <tr>
+                            <th style="width:26%">الاسم</th>
+                            <th style="width:48%">الموضوع</th>
+                            <th style="width:26%">تاريخ الموعد</th>
+                        </tr>
+                    </thead>
+                    <tbody id="register-body"></tbody>
+                </table>
+                <div class="actions">
+                    <button type="button" class="btn-ghost" onclick="closeRegister()">إغلاق</button>
+                    <button type="button" class="action-btn" onclick="printRegister()">🖨️ طباعة</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="alerts-overlay">
+            <div class="statement-card alerts-card">
+                <h3>🔔 تنبيهات المواعيد المحالة</h3>
+                <div class="st-dept" id="alerts-sub"></div>
+                <div class="st-locked-note" id="alerts-note" style="display:none;"></div>
+                <div id="alerts-list"></div>
+                <div class="actions">
+                    <button type="button" class="btn-ghost" onclick="openAlertsSettings()">⚙️ إعدادات الإيميل</button>
+                    <button type="button" class="btn-ghost" onclick="closeAlerts()">إغلاق</button>
+                    <button type="button" class="action-btn" onclick="sendAllAlerts()">📧 إرسال الكل</button>
+                </div>
+            </div>
+        </div>
+
+            <div id="sign-overlay">
         <div class="sign-card">
             <h3>✍️ التوقيع الإلكتروني للمدير العام</h3>
             <p class="sign-hint">ارسم توقيعك داخل المربع، أو حمّل صورة توقيعك، ثم اضغط «حفظ التوقيع»</p>
@@ -1061,6 +1217,8 @@
             <div class="tabs" style="margin-bottom:16px;">
                 <button type="button" id="set-tab-users" class="tab active" onclick="switchSettingsTab('users')">المستخدمون</button>
                 <button type="button" id="set-tab-depts" class="tab" onclick="switchSettingsTab('depts')">الإدارات</button>
+                <button type="button" id="set-tab-alerts" class="tab" onclick="switchSettingsTab('alerts')">التنبيهات</button>
+                <button type="button" id="set-tab-wa" class="tab" onclick="switchSettingsTab('wa')">📱 الواتساب</button>
             </div>
             <div id="settings-users">
                 <div class="settings-users-wrap">
@@ -1086,6 +1244,43 @@
                     <input type="text" id="new-dept" placeholder="اسم الإدارة الجديدة">
                     <button type="button" class="action-btn" onclick="addDept()">➕ إضافة إدارة</button>
                 </div>
+            </div>
+            <div id="settings-alerts" style="display:none;">
+                <div class="st-dept">خدمة الإرسال: <b>EmailJS</b> — أنشئ حسابًا على emailjs.com، ثم خدمة بريد (Gmail/Outlook) وقالبًا، وضع المفاتيح الثلاثة هنا.
+                    في القالب: اجعل حقل «To Email» هو <b dir="ltr">{{to_email}}</b> وحقل الرسالة «Message» هو <b dir="ltr">{{message}}</b>، و«Subject» هو <b dir="ltr">{{subject}}</b>.</div>
+                <div class="field"><label for="ej-user">User ID (Public Key)</label><input type="text" id="ej-user" dir="ltr" placeholder="user_xxxxxxxx" onchange="saveEmailCfg()"></div>
+                <div class="field"><label for="ej-service">Service ID</label><input type="text" id="ej-service" dir="ltr" placeholder="service_xxxxxxxx" onchange="saveEmailCfg()"></div>
+                <div class="field"><label for="ej-template">Template ID</label><input type="text" id="ej-template" dir="ltr" placeholder="template_xxxxxxxx" onchange="saveEmailCfg()"></div>
+                <label class="ej-check"><input type="checkbox" id="ej-auto" onchange="saveEmailCfg()"> تذكير تلقائي عند الدخول بمواعيد اليوم/الغد المحالة (مرة واحدة يوميًا)</label>
+                <button type="button" class="btn-ghost" onclick="testEmail()">📧 إرسال رسالة اختبار</button>
+                <span id="ej-status" class="st-dept"></span>
+                <div class="st-dept" id="ej-mails" style="margin-top:12px;"></div>
+            </div>
+            <div id="settings-wa" style="display:none;">
+                <div class="st-dept">تنبيهات واتساب عبر <b>Twilio</b> (يمرّ عبر وسيط آمن على Cloudflare — رمز الحساب لا يظهر في الصفحة ولا يُخزَّن في الموقع).
+                    الصيغة الدولية للأرقام: <b dir="ltr">+9665XXXXXXXX</b>.</div>
+                <label class="ej-check"><input type="checkbox" id="wa-enabled" onchange="saveWaCfg()"> تفعيل تنبيهات الواتساب (حسب الوضع بالأسفل)</label>
+                <div class="field"><label for="wa-mode">وضع الإرسال</label>
+                    <select id="wa-mode" onchange="saveWaCfg()">
+                        <option value="manual">يدوي فقط — زر إرسال من لوحة التنبيهات</option>
+                        <option value="referral">تلقائي عند التحويل للإدارة</option>
+                        <option value="done">تلقائي عند اكتمال/توقيع الطلب</option>
+                        <option value="both">تلقائي عند التحويل والاكتمال</option>
+                    </select></div>
+                <div class="field"><label for="wa-sid">Twilio Account SID</label><input type="text" id="wa-sid" dir="ltr" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" onchange="saveWaCfg()"></div>
+                <div class="field"><label for="wa-token">Twilio Auth Token</label><input type="password" id="wa-token" dir="ltr" placeholder="••••••••••••" onchange="saveWaCfg()"></div>
+                <div class="field"><label for="wa-from">رقم واتساب المرسل (From)</label><input type="text" id="wa-from" dir="ltr" placeholder="+14155238886" onchange="saveWaCfg()"></div>
+                <div class="field"><label for="wa-csid">ContentSid قالب واتساب (مطلوب لسياسة Meta الجديدة)</label><input type="text" id="wa-csid" dir="ltr" placeholder="HXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" onchange="saveWaCfg()"></div>
+                <div class="st-dept">أرقام التنبيه — <b>اختيارية</b>: من يترك خانته فارغة لا يصله تنبيه. (جهة المكتب تستقبل تنبيهات كل المواعيد)</div>
+                <table class="register-table" style="margin-top:8px;">
+                    <thead><tr><th style="width:42%">الجهة / الإدارة</th><th style="width:44%">رقم الواتساب</th><th style="width:14%">حذف</th></tr></thead>
+                    <tbody id="wa-numbers"></tbody>
+                </table>
+                <button type="button" class="btn-ghost" onclick="waAddRow()">➕ إضافة جهة/رقم</button>
+                <div class="field" style="margin-top:14px;"><label for="wa-test-num">إرسال اختبار إلى رقم</label><input type="text" id="wa-test-num" dir="ltr" placeholder="+9665XXXXXXXX"></div>
+                <button type="button" class="btn-ghost" onclick="testWa()">📱 إرسال رسالة اختبار</button>
+                <button type="button" class="btn-ghost" onclick="saveWaCfg(true)">💾 حفظ إعدادات الواتساب</button>
+                <span id="wa-status" class="st-dept"></span>
             </div>
             <div class="actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
                 <button type="button" class="btn-ghost" onclick="closeSettings()">إغلاق</button>
@@ -1120,18 +1315,18 @@
                 <tr>
                     <td class="lbl">رقم الطلب</td>
                     <td id="tpl-number"></td>
-                    <td class="lbl">رقم الهوية</td>
-                    <td id="tpl-idNumber"></td>
                     <td class="lbl">اسم صاحب الطلب</td>
                     <td id="tpl-name"></td>
+                    <td class="lbl">رقم الهوية</td>
+                    <td id="tpl-idNumber"></td>
                 </tr>
                 <tr>
-                    <td class="lbl">وقت الموعد</td>
-                    <td id="tpl-time"></td>
-                    <td class="lbl">اليوم والتاريخ</td>
-                    <td id="tpl-date"></td>
                     <td class="lbl">رقم الجوال</td>
                     <td id="tpl-phone"></td>
+                    <td class="lbl">اليوم والتاريخ</td>
+                    <td id="tpl-date"></td>
+                    <td class="lbl">وقت الموعد</td>
+                    <td id="tpl-time"></td>
                 </tr>
                 <tr>
                     <td class="lbl">موضوع الطلب</td>
@@ -1158,11 +1353,9 @@
             <table class="tpl-chk">
                 <tr>
                     <td><span class="tpl-cb" id="cb-attach0">☐</span>لا توجد مرفقات</td>
-                    <td><span class="tpl-cb" id="cb-attach1">☐</span>عدد المرفقات ونوعها: <span id="tpl-attachDetails"></span></td>
                     <td><span class="tpl-cb" id="cb-attach2">☐</span>يوجد مرفقات</td>
                 </tr>
             </table>
-            <div class="tpl-box" id="tpl-files" style="margin-top:8px;"></div>
 
             <div class="tpl-note">يُعبأ من قِبل الإدارة المختصة</div>
 
@@ -1173,16 +1366,17 @@
             <div class="tpl-box" id="tpl-director"></div>
 
             <div class="tpl-sign">
-                <div>
+                <div class="tpl-sign-block">
+                    <div class="tpl-sign-title">مدير عام تنمية المدينة بقطاع غرب الرياض</div>
                     <img id="tpl-signature" src="" alt="" style="display:none;">
-                    توقيع المدير العام
+                    <div class="tpl-sign-name">م.معنى بن محمد بن فهد الفهد</div>
                 </div>
             </div>
 
-            <div class="tpl-files-full" id="tpl-files-full"></div>
-
             <div class="tpl-foot">صدر عن نظام إدارة المواعيد - أمانة منطقة الرياض | تاريخ إنشاء النموذج: <span id="tpl-created"></span></div>
         </div>
+
+        <div class="tpl-files-full" id="tpl-files-full"></div>
     </div>
 
     <script>
@@ -1300,6 +1494,7 @@
             db.appointments = Object.keys(byId).map(k => byId[k]);
             if (usersDirty) db.users = USERS;
             if (deptsDirty) db.departments = DEPARTMENTS;
+            if (waDirty) db.wa = WA;
             if (!db.users || !db.users.length) db.users = USERS;
             if (!db.departments || !db.departments.length) db.departments = DEPARTMENTS;
             db.meta = Object.assign({}, db.meta || {}, META);
@@ -1310,6 +1505,10 @@
             META = db.meta || {};
             if (db.users && db.users.length) USERS = db.users;
             if (db.departments && db.departments.length) DEPARTMENTS = db.departments;
+            if (db.wa && typeof db.wa === 'object') {
+                WA = db.wa;
+                try { localStorage.setItem('wa_cfg', JSON.stringify(WA)); } catch (e) {}
+            }
             LAST_REV = db.rev || 0;
             dirtyIds.clear(); dirtyDeletes.clear();
             usersDirty = false; deptsDirty = false; metaDirty = false;
@@ -1460,10 +1659,18 @@
         let currentUser = null;
         let stEditingId = null;
         let currentTab = 'active';
+        let adminDeptFilter = null;
+        let adminThreadFilter = false;
 
         function baseScoped() {
             if (currentUser && currentUser.role === 'dept') {
                 return appointments.filter(a => normStr(a.department) === normStr(currentUser.dept));
+            }
+            if (currentUser && currentUser.role === 'admin' && adminDeptFilter) {
+                return appointments.filter(a => normStr(a.department) === normStr(adminDeptFilter));
+            }
+            if (currentUser && currentUser.role === 'director' && adminDeptFilter) {
+                return appointments.filter(a => normStr(a.department) === normStr(adminDeptFilter));
             }
             return appointments;
         }
@@ -1481,6 +1688,9 @@
             const role = currentUser ? currentUser.role : '';
             if (currentTab === 'done') {
                 return list.filter(isDone);
+            }
+            if (role === 'admin' && adminThreadFilter) {
+                return list.filter(a => a.withOffice);
             }
             if (role === 'dept') {
                 return list.filter(a => !a.completed && !a.statementSent);
@@ -1550,10 +1760,16 @@
             if (setBtn) setBtn.style.display = currentUser.role === 'admin' ? 'inline-block' : 'none';
             const signMain = document.getElementById('sign-btn-main');
             if (signMain) signMain.style.display = isDirector ? 'inline-block' : 'none';
+            const regBtn = document.getElementById('register-btn');
+            if (regBtn) regBtn.style.display = (!isDept && !isDirector) ? 'inline-block' : 'none';
+            const alBtn = document.getElementById('alerts-btn');
+            if (alBtn) alBtn.style.display = (!isDept && !isDirector) ? 'inline-block' : 'none';
+            if (!isDept && !isDirector) setTimeout(maybeAutoAlert, 6000);
             const showForm = canAdd && currentTab !== 'done';
             document.getElementById('form-card').style.display = showForm ? 'block' : 'none';
             const grid = document.querySelector('.grid');
             if (grid) grid.classList.toggle('no-form', !showForm);
+            adminDeptFilter = null;
         }
 
         function openSettings() {
@@ -1571,8 +1787,14 @@
         function switchSettingsTab(tab) {
             document.getElementById('set-tab-users').classList.toggle('active', tab === 'users');
             document.getElementById('set-tab-depts').classList.toggle('active', tab === 'depts');
+            document.getElementById('set-tab-alerts').classList.toggle('active', tab === 'alerts');
+            document.getElementById('set-tab-wa').classList.toggle('active', tab === 'wa');
             document.getElementById('settings-users').style.display = tab === 'users' ? 'block' : 'none';
             document.getElementById('settings-depts').style.display = tab === 'depts' ? 'block' : 'none';
+            document.getElementById('settings-alerts').style.display = tab === 'alerts' ? 'block' : 'none';
+            document.getElementById('settings-wa').style.display = tab === 'wa' ? 'block' : 'none';
+            if (tab === 'alerts') loadEmailCfgIntoForm();
+            if (tab === 'wa') loadWaIntoForm();
         }
 
         function deptOptionsHtml(selected) {
@@ -1703,11 +1925,23 @@
             const a = appointments.find(x => x.id === id);
             if (!a) return;
             stEditingId = id;
-            document.getElementById('st-text').value = a.statement || '';
+            const isDirector = !!(currentUser && currentUser.role === 'director');
+            const locked = !!a.signed && !isDirector;
+            const ta = document.getElementById('st-text');
+            ta.value = a.statement || '';
+            ta.readOnly = locked;
             document.getElementById('st-user-dept').textContent = (currentUser && currentUser.role === 'dept') ? currentUser.name : (a.department || '');
             const sendBtn = document.getElementById('st-send-btn');
             if (sendBtn) {
-                sendBtn.style.display = (currentUser && currentUser.role === 'dept') ? 'inline-block' : 'none';
+                sendBtn.style.display = (!locked && currentUser && currentUser.role === 'dept') ? 'inline-block' : 'none';
+            }
+            const saveBtn = document.getElementById('st-save-btn');
+            if (saveBtn) {
+                saveBtn.style.display = locked ? 'none' : '';
+            }
+            const lockNote = document.getElementById('st-locked-note');
+            if (lockNote) {
+                lockNote.style.display = locked ? 'block' : 'none';
             }
             document.getElementById('statement-overlay').style.display = 'flex';
         }
@@ -1717,10 +1951,17 @@
             stEditingId = null;
         }
 
+
         function saveStatement(send = true) {
             if (stEditingId == null) return;
             const idx = appointments.findIndex(x => x.id === stEditingId);
             if (idx !== -1) {
+                const isDirector = !!(currentUser && currentUser.role === 'director');
+                if (appointments[idx].signed && !isDirector) {
+                    alert('لا يمكن تعديل الإفادة بعد توقيع المدير العام. يمكن للمدير العام فقط التعديل أو إعادة تحويل الموعد للإدارة.');
+                    closeStatement();
+                    return;
+                }
                 const txt = document.getElementById('st-text').value.trim();
                 appointments[idx].statement = txt;
                 appointments[idx].statementBy = currentUser ? currentUser.name : '';
@@ -1729,6 +1970,11 @@
                     if (send || !appointments[idx].statementSent) {
                         appointments[idx].statementSent = true;
                         appointments[idx].completed = true;
+                        if (appointments[idx].forDiscussion) {
+                            appointments[idx].forDiscussion = false;
+                            delete appointments[idx].discussionBy;
+                            delete appointments[idx].discussionAt;
+                        }
                     } else {
                         appointments[idx].statementSent = true;
                     }
@@ -1752,6 +1998,58 @@
         function closeOpinion() {
             document.getElementById('opinion-overlay').style.display = 'none';
             opEditingId = null;
+        }
+
+        let threadEditingId = null;
+
+        function openThread(id) {
+            const a = appointments.find(x => x.id === id);
+            if (!a) return;
+            threadEditingId = id;
+            document.getElementById('th-info').textContent = 'الموعد #' + (a.number || '') + ' — ' + (a.name || '') + ' — ' + (a.department || '');
+            const hist = document.getElementById('th-history');
+            const msgs = Array.isArray(a.thread) ? a.thread : [];
+            hist.innerHTML = msgs.length ? msgs.map(function (m) {
+                const who = m.role === 'admin' ? 'مكتب المدير العام' : (m.role === 'director' ? 'المدير العام' : (m.by || 'الإدارة'));
+                const when = m.at ? new Date(m.at).toLocaleString('en-GB') : '';
+                return '<div class="th-msg"><div class="th-meta">' + escapeHtml(who) + (when ? ' — ' + escapeHtml(when) : '') + '</div>' + escapeHtml(m.text || '') + '</div>';
+            }).join('') : '<div class="th-empty">لا توجد ملاحظات سابقة</div>';
+            document.getElementById('th-text').value = '';
+            const sendBtn = document.getElementById('th-send-btn');
+            const isDept = currentUser && currentUser.role === 'dept';
+            const isAdmin = currentUser && currentUser.role === 'admin';
+            if (sendBtn) {
+                sendBtn.style.display = (isDept || isAdmin) ? 'inline-block' : 'none';
+                sendBtn.textContent = isDept ? '📤 إرسال الطلب للمكتب' : '📤 إرسال وإعادة الطلب للإدارة';
+            }
+            document.getElementById('thread-overlay').style.display = 'flex';
+        }
+
+        function closeThread() {
+            document.getElementById('thread-overlay').style.display = 'none';
+            threadEditingId = null;
+        }
+
+        function sendThread() {
+            if (threadEditingId == null) return;
+            const txt = document.getElementById('th-text').value.trim();
+            if (!txt) { alert('اكتب الملاحظة أولاً'); return; }
+            const idx = appointments.findIndex(x => x.id === threadEditingId);
+            if (idx === -1) { closeThread(); return; }
+            if (!Array.isArray(appointments[idx].thread)) appointments[idx].thread = [];
+            appointments[idx].thread.push({
+                by: currentUser ? currentUser.name : '',
+                role: currentUser ? currentUser.role : '',
+                text: txt,
+                at: new Date().toISOString()
+            });
+            appointments[idx].withOffice = !!(currentUser && currentUser.role === 'dept');
+            saveAppointments(appointments);
+            closeThread();
+            render();
+            alert(currentUser && currentUser.role === 'dept'
+                ? 'تم إرسال الطلب للمكتب مع ملاحظتك — الموعد تحت الإجراء'
+                : 'تم إرسال الملاحظة وإعادة الطلب للإدارة — تحت الإجراء');
         }
 
         function saveOpinion() {
@@ -1798,10 +2096,68 @@
             const editable = canEditFiles();
             list.innerHTML = files.map((f, i) => `
                 <div class="file-row">
-                    <a href="${f.data}" download="${escapeHtml(f.name)}" target="_blank">📄 ${escapeHtml(f.name)}</a>
-                    ${editable ? `<button class="row-btn" title="حذف" onclick="removeFile(${i})">🗑️</button>` : ''}
+                    <span class="file-name">📄 ${escapeHtml(f.name)}</span>
+                    <span class="file-actions">
+                        <button class="row-btn" title="معاينة" onclick="previewFile(${i})">👁️</button>
+                        <button class="row-btn" title="طباعة" onclick="printFile(${i})">🖨️</button>
+                        ${editable ? `<button class="row-btn" title="حذف" onclick="removeFile(${i})">🗑️</button>` : ''}
+                    </span>
                 </div>
             `).join('');
+        }
+
+        function dataUrlToBlob(dataUrl) {
+            const parts = String(dataUrl).split(',');
+            const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+            const bin = atob(parts[1] || '');
+            const arr = new Uint8Array(bin.length);
+            for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+            return new Blob([arr], { type: mime });
+        }
+
+        function previewFile(i) {
+            const a = appointments.find(x => x.id === filesEditingId);
+            if (!a || !a.files || !a.files[i]) return;
+            const f = a.files[i];
+            try {
+                const blob = dataUrlToBlob(f.data);
+                const url = URL.createObjectURL(blob);
+                const w = window.open(url, '_blank');
+                if (!w) alert('يرجى السماح بالنوافذ المنبثقة للمعاينة');
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            } catch (e) {
+                alert('تعذّر معاينة هذا الملف.');
+            }
+        }
+
+        function printFile(i) {
+            const a = appointments.find(x => x.id === filesEditingId);
+            if (!a || !a.files || !a.files[i]) return;
+            const f = a.files[i];
+            if ((f.type || '').startsWith('image/')) {
+                printImage(f);
+            } else {
+                printGeneric(f);
+            }
+        }
+
+        function printImage(f) {
+            const blob = dataUrlToBlob(f.data);
+            const url = URL.createObjectURL(blob);
+            const win = window.open('', '_blank');
+            if (!win) { alert('يرجى السماح بالنوافذ المنبثقة للمعاينة والطباعة'); return; }
+            win.document.write('<html><head><title>' + escapeHtml(f.name) + '</title></head><body style="margin:0;text-align:center;"><img src="' + url + '" style="max-width:95vw;max-height:95vh;"></body></html>');
+            win.document.close();
+            win.focus();
+            win.onload = () => { win.print(); setTimeout(() => URL.revokeObjectURL(url), 10000); };
+        }
+
+        function printGeneric(f) {
+            const blob = dataUrlToBlob(f.data);
+            const url = URL.createObjectURL(blob);
+            const win = window.open(url, '_blank');
+            if (!win) alert('يرجى السماح بالنوافذ المنبثقة للطباعة');
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
         }
 
         function addFiles() {
@@ -1849,10 +2205,14 @@
         const form = document.getElementById('appointment-form');
         const tableBody = document.getElementById('table-body');
         const searchInput = document.getElementById('search');
-        const filterEval = document.getElementById('filter-eval');
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
+
+            if (document.getElementById('appointment-form').classList.contains('status-mode')) {
+                saveStatusOnlyForm();
+                return;
+            }
 
             const id = document.getElementById('edit-id').value;
             const data = {
@@ -1869,29 +2229,66 @@
                 statement: document.getElementById('statement').value.trim(),
                 directorOpinion: document.getElementById('directorOpinion').value.trim(),
                 attachments: document.querySelector('input[name="attachments"]:checked').value,
-                attachmentDetails: document.getElementById('attachmentDetails').value.trim(),
-                evaluation: '',
-                status: document.getElementById('status').value
+                status: document.getElementById('status').value.trim()
             };
 
+            let savedWa = null;
+            let prevDeptWa = '';
             if (id) {
                 const idx = appointments.findIndex(a => a.id === Number(id));
                 if (idx !== -1) {
+                    prevDeptWa = appointments[idx].department || '';
                     appointments[idx] = { ...appointments[idx], ...data };
+                    savedWa = appointments[idx];
                 }
             } else {
                 data.id = Date.now();
                 appointments.push(data);
+                savedWa = data;
             }
 
             saveAppointments(appointments);
             resetForm();
             render();
             alert('تم حفظ الموعد بنجاح');
+            if (savedWa && savedWa.department && normStr(savedWa.department) !== normStr(prevDeptWa)) waNotify('referral', savedWa);
         });
+
+        function setFormFieldsDisabled(disabled) {
+            Array.prototype.forEach.call(document.getElementById('appointment-form').querySelectorAll('input, select, textarea'), function (el) {
+                if (el.closest('.status-only')) return;
+                el.disabled = disabled;
+            });
+        }
+
+        function openStatusForm(id) {
+            const a = appointments.find(x => x.id === id);
+            if (!a) return;
+            editAppointment(id);
+            document.getElementById('appointment-form').classList.add('status-mode');
+            document.getElementById('form-title').textContent = '🏷️ حالة الطلب';
+            document.getElementById('submit-btn').textContent = '💾 حفظ حالة الطلب';
+            setFormFieldsDisabled(true);
+        }
+
+        function saveStatusOnlyForm() {
+            const id = Number(document.getElementById('edit-id').value);
+            const idx = appointments.findIndex(a => a.id === id);
+            if (idx === -1) { resetForm(); return; }
+            const val = document.getElementById('status').value.trim();
+            if (!val) { alert('اختر حالة الطلب'); return; }
+            appointments[idx].status = val;
+            saveAppointments(appointments);
+            resetForm();
+            render();
+            alert('تم حفظ حالة الطلب');
+            if (waDoneStatus(val)) waNotify('done', appointments[idx]);
+        }
 
         function resetForm() {
             form.reset();
+            document.getElementById('appointment-form').classList.remove('status-mode');
+            setFormFieldsDisabled(false);
             document.getElementById('edit-id').value = '';
             document.getElementById('form-title').textContent = ' إضافة موعد جديد';
             document.getElementById('submit-btn').textContent = 'حفظ الموعد';
@@ -1923,8 +2320,8 @@
             document.getElementById('statement').value = a.statement;
             document.getElementById('directorOpinion').value = a.directorOpinion || '';
             document.querySelector(`input[name="attachments"][value="${a.attachments}"]`).checked = true;
-            document.getElementById('attachmentDetails').value = a.attachmentDetails || '';
-            document.querySelector(`input[name="evaluation"][value="${a.evaluation}"]`).checked = true;
+            document.getElementById('appointment-form').classList.remove('status-mode');
+            setFormFieldsDisabled(false);
             document.getElementById('status').value = a.status || '';
 
             document.getElementById('form-title').textContent = '✏️ تعديل الموعد';
@@ -1948,15 +2345,13 @@
 
         function getFiltered() {
             const q = searchInput.value.trim().toLowerCase();
-            const ev = filterEval ? filterEval.value : '';
             return scoped().filter(a => {
                 const matchQ = !q ||
                     a.number.toLowerCase().includes(q) ||
                     a.name.toLowerCase().includes(q) ||
                     a.subject.toLowerCase().includes(q) ||
                     (a.date || '').includes(q);
-                const matchEv = !ev || a.evaluation === ev;
-                return matchQ && matchEv;
+                return matchQ;
             });
         }
 
@@ -1964,48 +2359,61 @@
             const list = getFiltered();
 
             if (list.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="15" class="empty">لا توجد مواعيد مطابقة</td></tr>';
+                tableBody.innerHTML = '<div class="appt-empty">لا توجد مواعيد مطابقة</div>';
             } else {
                 tableBody.innerHTML = list.map(a => `
-                    <tr>
-                        <td>${escapeHtml(a.number)}</td>
-                        <td>${escapeHtml(a.name)}</td>
-                        <td>${escapeHtml(a.idNumber) || '-'}</td>
-                        <td>${escapeHtml(a.subject)}</td>
-                        <td>${escapeHtml(a.date) || '-'}</td>
-                        <td>${escapeHtml(a.time) || '-'}</td>
-                        <td>${escapeHtml(a.phone) || '-'}</td>
-                        <td>${escapeHtml(a.meetingType) || '-'}</td>
-                        <td>${escapeHtml(a.department)}</td>
-                        <td>${escapeHtml(a.statement) || '-'}</td>
-                        <td class="col-dir-op">${escapeHtml(a.directorOpinion) || '-'}</td>
-                        <td>${escapeHtml(a.attachmentDetails ? a.attachments + ' - ' + a.attachmentDetails : a.attachments)}</td>
-                        <td><span class="badge ${a.evaluation === 'نعم' ? 'badge-yes' : 'badge-no'}">${a.evaluation}</span></td>
-                        <td>${escapeHtml(a.status) || '-'}${a.signed ? ' <span class="badge" style="background:#e6f4ea;color:#1e7e34;">موقّع</span>' : ''}${a.forDiscussion ? ' <span class="badge" style="background:#fff3cd;color:#8a6d3b;">للمناقشة</span>' : ''}</td>
-                        <td class="col-stages">${stageChips(a)}</td>
-                        <td style="white-space:nowrap;">
-                            ${actionButtons(a)}
-                        </td>
-                    </tr>
+                    <div class="appt-card">
+                        <div class="appt-head">
+                            <span class="appt-num">#${escapeHtml(a.number)}</span>
+                            <span class="appt-name">${escapeHtml(a.name)}</span>
+                            <span class="appt-dept">${escapeHtml(a.department) || '-'}</span>
+                            ${a.withOffice ? '<span class="badge" style="background:#fff3cd;color:#8a6d3b;">📨 مع المكتب</span>' : ''}
+                            ${a.signed ? '<span class="badge" style="background:#e6f4ea;color:#1e7e34;">موقّع</span>' : ''}
+                            ${a.forDiscussion ? '<span class="badge" style="background:#fff3cd;color:#8a6d3b;">للمناقشة</span>' : ''}
+                            <span class="appt-actions">${actionButtons(a)}</span>
+                        </div>
+                        <div class="appt-meta">
+                            <span class="mi"><b>رقم الهوية</b>${escapeHtml(a.idNumber) || '-'}</span>
+                            <span class="mi"><b>الجوال</b>${escapeHtml(a.phone) || '-'}</span>
+                            <span class="mi"><b>التاريخ</b>${escapeHtml(a.date) || '-'}</span>
+                            <span class="mi"><b>الوقت</b>${escapeHtml(a.time) || '-'}</span>
+                            <span class="mi"><b>نوع الموعد</b>${escapeHtml(a.meetingType) || '-'}</span>
+                            <span class="mi"><b>المرفقات</b>${escapeHtml(a.attachments) || '-'}</span>
+                        </div>
+                        <div class="appt-line"><b>الموضوع:</b> ${escapeHtml(a.subject) || '-'}</div>
+                        <div class="appt-line"><b>الإفادة:</b> ${escapeHtml(a.statement) || '-'}</div>
+                        <div class="appt-line col-dir-op"><b>رأي المدير العام:</b> ${escapeHtml(a.directorOpinion) || '-'}</div>
+                        <div class="appt-line"><b>حالة الطلب:</b> ${escapeHtml(a.status) || '-'}</div>
+                        <div class="appt-stages col-stages">${stageChips(a)}</div>
+                    </div>
                 `).join('');
             }
 
             updateStats();
         }
 
-        function renderExtraActions(a) {
-            let extra = '';
-            if (currentUser) {
-                if (currentUser.role === 'admin') {
-                    if (a.statementSent) {
-                        extra += `<button class="row-btn" title="طلب تعديل الإفادة" onclick="requestStatementEdit(${a.id})">↩️</button>`;
-                        extra += `<button class="row-btn" title="إعادة الموعد للإفادة" onclick="returnToStatement(${a.id})">🔄</button>`;
-                    } else {
-                        extra += `<button class="row-btn" title="رد الإفادة للتعديل" onclick="requestStatementEdit(${a.id})">↩️</button>`;
-                    }
-                }
-            }
-            return extra;
+        function statShowAll() {
+            adminDeptFilter = null;
+            adminThreadFilter = false;
+            switchTab('active');
+        }
+
+        function statDeptUnder(d) {
+            adminThreadFilter = false;
+            adminDeptFilter = (adminDeptFilter && normStr(adminDeptFilter) === normStr(d)) ? null : d;
+            switchTab('active');
+        }
+
+        function statShowDone() {
+            adminDeptFilter = null;
+            adminThreadFilter = false;
+            switchTab('done');
+        }
+
+        function statShowThread() {
+            adminDeptFilter = null;
+            adminThreadFilter = !adminThreadFilter;
+            switchTab('active');
         }
 
         function stageChips(a) {
@@ -2013,6 +2421,8 @@
             if (a.statementSent || a.completed) chips.push('<span class="chip chip-ok">إفادة</span>');
             if (a.directorOpinion) chips.push('<span class="chip chip-info">رأي</span>');
             if (a.files && a.files.length) chips.push('<span class="chip chip-info">📎 ' + a.files.length + '</span>');
+            if (a.thread && a.thread.length) chips.push('<span class="chip chip-warn">💬 ' + a.thread.length + '</span>');
+            if (a.withOffice) chips.push('<span class="chip chip-warn">مع المكتب</span>');
             if (a.forDiscussion) chips.push('<span class="chip chip-warn">مناقشة</span>');
             if (a.signed) chips.push('<span class="chip chip-ok">توقيع</span>');
             if (a.status) chips.push('<span class="chip chip-ok">حالة</span>');
@@ -2021,8 +2431,12 @@
 
         function actionButtons(a) {
             if (currentUser && currentUser.role === 'dept') {
-                return `<button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
+                let deptBtns = '';
+                deptBtns += `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
+                deptBtns += `<button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                         <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>`;
+                deptBtns += `<button class="row-btn" title="إعادة الطلب للمكتب مع ملاحظة" onclick="openThread(${a.id})" style="${a.withOffice ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">↩️</button>`;
+                return deptBtns;
             }
             if (currentUser && currentUser.role === 'director') {
                 let btns = `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
@@ -2030,52 +2444,596 @@
                 btns += `<button class="row-btn" title="عرض المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>`;
                 if (a.signed) {
                     btns += `<button class="row-btn" title="موقّع (اضغط لإلغاء التوقيع)" onclick="signAppointment(${a.id})" style="background:#e6f4ea;border-color:#1e7e34;">✅</button>`;
-                } else {
+                    btns += `<button class="row-btn" title="تحرير الإفادة" onclick="openStatement(${a.id})">✍️</button>`;
+                    btns += `<button class="row-btn" title="إعادة الإفادة (تعود للإدارة تحت الإجراء)" onclick="returnToStatement(${a.id})">↩️</button>`;
+                    btns += `<button class="row-btn" title="${a.forDiscussion ? 'إلغاء المناقشة' : 'للمناقشة (تعود للإدارة تحت الإجراء)'}" onclick="toggleDiscussion(${a.id})" style="${a.forDiscussion ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">💬</button>`;
+                } else if (a.directorOpinion) {
                     btns += `<button class="row-btn" title="توقيع المدير العام" onclick="signAppointment(${a.id})">✍️</button>`;
+                    btns += `<button class="row-btn" title="إعادة الإفادة (تعود للإدارة تحت الإجراء)" onclick="returnToStatement(${a.id})">↩️</button>`;
+                    btns += `<button class="row-btn" title="للمناقشة (تعود للإدارة تحت الإجراء)" onclick="toggleDiscussion(${a.id})">💬</button>`;
                 }
-                btns += `<button class="row-btn" title="إعادة الإفادة" onclick="returnToStatement(${a.id})">↩️</button>`;
-                btns += `<button class="row-btn" title="${a.forDiscussion ? 'إلغاء المناقشة' : 'للمناقشة'}" onclick="toggleDiscussion(${a.id})" style="${a.forDiscussion ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">💬</button>`;
                 return btns;
             }
             if (currentUser && currentUser.role === 'admin') {
+                if (a.signed) {
+                    return `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>
+                    <button class="row-btn" title="حالة الطلب" onclick="openStatusForm(${a.id})" style="${a.status ? 'background:#e6f4ea;border-color:#1e7e34;' : ''}">🏷️</button>`;
+                }
                 return `
                     <button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>
                     <button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                     <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>
                     <button class="row-btn" title="تعديل" onclick="editAppointment(${a.id})">✏️</button>
                     <button class="row-btn" title="حذف" onclick="deleteAppointment(${a.id})">🗑️</button>
-                    ${renderExtraActions(a)}`;
+                    <button class="row-btn" title="💬 مراسلة الإدارة — إيضاحات وردود" onclick="openThread(${a.id})" style="${a.withOffice ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">📨</button>`;
             }
             return ``;
         }
 
+        function roleAll() {
+            if (currentUser && currentUser.role === 'dept') {
+                return appointments.filter(a => normStr(a.department) === normStr(currentUser.dept));
+            }
+            return appointments;
+        }
+
+        function statBox(num, label, icon, active, onclick) {
+            return '<div class="stat-box clickable' + (active ? ' active' : '') + '" onclick="' + onclick + '">' +
+                '<div class="stat-ico">' + icon + '</div>' +
+                '<div class="stat-number">' + num + '</div>' +
+                '<div class="stat-label">' + label + '</div></div>';
+        }
+
         function updateStats() {
-            const list = baseScoped();
+            const list = roleAll();
             const total = list.length;
             const done = list.filter(isDone).length;
             const wip = total - done;
             const rate = total ? Math.round((done / total) * 100) : 0;
+            const grid = document.getElementById('stats-grid');
+            if (!grid) return;
+            const role = currentUser ? currentUser.role : '';
 
-            document.getElementById('stat-total').textContent = total;
-            document.getElementById('stat-done').textContent = done;
-            document.getElementById('stat-wip').textContent = wip;
-            document.getElementById('stat-rate').textContent = rate + '%';
+            if (role === 'director' || role === 'admin') {
+                const depts = [
+                    { name: 'إدارة رخص البناء', label: 'رخص البناء تحت الإجراء', icon: '🏗️' },
+                    { name: 'إدارة الرخص التجارية والاستثمارية', label: 'الرخص التجارية والاستثمارية تحت الإجراء', icon: '🏬' },
+                    { name: 'إدارة شؤون الأراضي', label: 'شؤون الأراضي تحت الإجراء', icon: '🗺️' }
+                ];
+                const under = list.filter(a => !isDone(a));
+                let html = statBox(total, 'إجمالي المواعيد', '📋', !adminDeptFilter && !adminThreadFilter && currentTab !== 'done', 'statShowAll()');
+                depts.forEach(d => {
+                    const cnt = under.filter(a => normStr(a.department) === normStr(d.name)).length;
+                    const active = adminDeptFilter && normStr(adminDeptFilter) === normStr(d.name);
+                    html += statBox(cnt, d.label, d.icon, active, "statDeptUnder('" + d.name.replace(/'/g, "\\'") + "')");
+                });
+                const threadCnt = list.filter(a => a.withOffice).length;
+                html += statBox(threadCnt, '📨 طلبات إيضاحات من الإدارات', '📨', adminThreadFilter && currentTab === 'active', 'statShowThread()');
+                html += statBox(done, 'إجمالي الطلبات المنجزة', '✅', !adminDeptFilter && !adminThreadFilter && currentTab === 'done', 'statShowDone()');
+                grid.innerHTML = html;
+            } else {
+                const boxTotal = `<div class="stat-box"><div class="stat-number">${total}</div><div class="stat-label">إجمالي المواعيد</div></div>`;
+                const boxDone = `<div class="stat-box"><div class="stat-number">${done}</div><div class="stat-label">منجز</div></div>`;
+                const boxWip = `<div class="stat-box"><div class="stat-number">${wip}</div><div class="stat-label">تحت الإجراء</div></div>`;
+                const boxRate = `<div class="stat-box"><div class="stat-number">${rate}%</div><div class="stat-label">نسبة الإنجاز</div></div>`;
+                grid.innerHTML = boxTotal + boxDone + boxWip + boxRate;
+            }
+        }
+
+        const ALERT_OFFICE_MAILS = ['Hdosary@alriyadh.gov.sa', 'anaf@alriyadh.gov.sa'];
+        const ALERT_DEPT_MAILS = [
+            { match: 'رخص البناء', mails: ['raalzahrani@alriyadh.gov.sa', 'RAlmoedy@alriyadh.gov.sa'] },
+            { match: 'الرخص التجارية', mails: ['aOtaib@alriyadh.gov.sa', 'tAlsabi@alriyadh.gov.sa'] },
+            { match: 'شوون الاراضي', mails: ['hhamdan@alriyadh.gov.sa', 'AdaDossari@alriyadh.gov.sa'] }
+        ];
+        let ALERT_GROUPS = [];
+
+        function alertMailsFor(deptName) {
+            const key = normStr(deptName);
+            for (let i = 0; i < ALERT_DEPT_MAILS.length; i++) {
+                if (key.indexOf(normStr(ALERT_DEPT_MAILS[i].match)) !== -1) return ALERT_DEPT_MAILS[i].mails;
+            }
+            return null;
+        }
+
+        function emailCfg() {
+            return {
+                user: (localStorage.getItem('ej_user') || '').trim(),
+                service: (localStorage.getItem('ej_service') || '').trim(),
+                template: (localStorage.getItem('ej_template') || '').trim(),
+                auto: localStorage.getItem('ej_auto') === '1'
+            };
+        }
+
+        function saveEmailCfg() {
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('ej-user')) return;
+            localStorage.setItem('ej_user', (g('ej-user').value || '').trim());
+            localStorage.setItem('ej_service', (g('ej-service').value || '').trim());
+            localStorage.setItem('ej_template', (g('ej-template').value || '').trim());
+            localStorage.setItem('ej_auto', g('ej-auto').checked ? '1' : '0');
+            const st = g('ej-status');
+            if (st) { st.textContent = 'تم الحفظ ✓'; st.style.color = '#7ee0a8'; }
+            renderAlertMailsHint();
+        }
+
+        function renderAlertMailsHint() {
+            const el = document.getElementById('ej-mails');
+            if (!el) return;
+            el.textContent = 'المستلمون — مكتب المدير العام: ' + ALERT_OFFICE_MAILS.join('، ') +
+                ' — الإدارات: ' + ALERT_DEPT_MAILS.map(m => m.match + ' (' + m.mails.join('، ') + ')').join(' | ');
+        }
+
+        function loadEmailCfgIntoForm() {
+            const cfg = emailCfg();
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('ej-user')) return;
+            g('ej-user').value = cfg.user;
+            g('ej-service').value = cfg.service;
+            g('ej-template').value = cfg.template;
+            g('ej-auto').checked = cfg.auto;
+            const st = g('ej-status');
+            if (st) {
+                st.textContent = cfg.user && cfg.service && cfg.template ? 'الخدمة مفعّلة ✓' : 'الخدمة غير مفعّلة — أدخل المفاتيح الثلاثة';
+                st.style.color = cfg.user && cfg.service && cfg.template ? '#7ee0a8' : '#f0ad4e';
+            }
+            renderAlertMailsHint();
+        }
+
+        function sendEmailJS(to, subject, message) {
+            const cfg = emailCfg();
+            if (!cfg.user || !cfg.service || !cfg.template) {
+                return Promise.reject(new Error('خدمة الإيميل غير مفعّلة — الإعدادات ← تبويب «التنبيهات»'));
+            }
+            return fetch('https://api.emailjs.com/api/v1.0/email/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user_id: cfg.user,
+                    service_id: cfg.service,
+                    template_id: cfg.template,
+                    template_params: {
+                        to_email: to.join(', '),
+                        to_emails: to.join(', '),
+                        subject: subject,
+                        message: message,
+                        from_name: 'نظام إدارة المواعيد — أمانة منطقة الرياض'
+                    }
+                })
+            }).then(function (res) {
+                if (!res.ok) {
+                    return res.text().then(function (t) {
+                        throw new Error('HTTP ' + res.status + (t ? ' — ' + t.slice(0, 140) : ''));
+                    });
+                }
+                return true;
+            });
+        }
+
+        function activeAppts(list) {
+            return list.filter(a => !isDone(a)).sort(function (x, y) {
+                const dx = (x.date || '') + 'T' + (x.time || '');
+                const dy = (y.date || '') + 'T' + (y.time || '');
+                return dx < dy ? -1 : (dx > dy ? 1 : 0);
+            });
+        }
+
+        function alertGroups() {
+            const all = activeAppts(roleAll());
+            const groups = [{ title: 'مكتب المدير العام (كل المواعيد المحالة)', mails: ALERT_OFFICE_MAILS, list: all }];
+            const byDept = {};
+            all.forEach(function (a) {
+                const key = normStr(a.department || 'غير محدد');
+                if (!byDept[key]) {
+                    byDept[key] = { title: a.department || 'بدون إدارة', mails: alertMailsFor(a.department) || ALERT_OFFICE_MAILS, list: [] };
+                }
+                byDept[key].list.push(a);
+            });
+            Object.keys(byDept).forEach(function (k) { groups.push(byDept[k]); });
+            return groups;
+        }
+
+        function alertMessage(g) {
+            const lines = ['السلام عليكم،', '',
+                'تذكير بالمواعيد المحالة على ' + g.title + ' — عددها: ' + g.list.length,
+                'المطلوب: متابعة هذه المواعيد وتحديث حالتها داخل النظام.', '',
+                'الاسم | الموضوع | تاريخ الموعد | الوقت', '-------------------------------------'];
+            g.list.forEach(function (a) {
+                lines.push((a.name || '') + ' | ' + (a.subject || '') + ' | ' + arDate(a.date) + ' | ' + arTime(a.time));
+            });
+            lines.push('', 'المرسل: نظام إدارة المواعيد — أمانة منطقة الرياض',
+                'تاريخ الإرسال: ' + new Date().toLocaleString('en-GB'));
+            return lines.join('\n');
+        }
+
+        function setAlertMsg(i, text, cls) {
+            const el = document.getElementById('alert-msg-' + i);
+            if (el) { el.textContent = text; el.className = 'alert-msg' + (cls ? ' ' + cls : ''); }
+        }
+
+        function renderAlerts() {
+            const esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+            const cfg = emailCfg();
+            const ready = !!(cfg.user && cfg.service && cfg.template);
+            const note = document.getElementById('alerts-note');
+            note.style.display = ready ? 'none' : 'block';
+            note.textContent = 'خدمة الإيميل غير مفعّلة بعد — من الإعدادات ← تبويب «التنبيهات» ضع المفاتيح الثلاثة من EmailJS لتفعيل الإرسال.';
+            document.getElementById('alerts-sub').textContent = 'مجموعات التنبيه: ' + ALERT_GROUPS.length +
+                ' — ترتيب المواعيد حسب التاريخ';
+            document.getElementById('alerts-list').innerHTML = ALERT_GROUPS.map(function (g, i) {
+                const waNums = groupWaNums(g);
+                return '<div class="alert-row">' +
+                    '<div class="alert-dept">' + esc(g.title) + '<span class="alert-count">' + g.list.length + ' مواعيد</span></div>' +
+                    '<button type="button" class="action-btn" onclick="sendAlertGroup(' + i + ')">📧 إرسال تنبيه</button>' +
+                    (waNums.length ? '<button type="button" class="btn-ghost" onclick="sendAlertWa(' + i + ')">📱 إرسال واتساب</button>' : '') +
+                    '<div class="alert-mails">' + esc(g.mails.join(' | ')) + '</div>' +
+                    (waNums.length ? '<div class="alert-mails">واتساب: ' + esc(waNums.join(' | ')) + '</div>' : '') +
+                    '<div class="alert-msg" id="alert-msg-' + i + '"></div>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function openAlerts() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            ALERT_GROUPS = alertGroups();
+            renderAlerts();
+            document.getElementById('alerts-overlay').style.display = 'flex';
+        }
+
+        function closeAlerts() {
+            document.getElementById('alerts-overlay').style.display = 'none';
+        }
+
+        function sendAlertGroup(i) {
+            const g = ALERT_GROUPS[i];
+            if (!g) return Promise.resolve();
+            if (!g.list.length) { setAlertMsg(i, 'لا توجد مواعيد لإرسال تنبيه عنها', ''); return Promise.resolve(); }
+            setAlertMsg(i, 'جارٍ الإرسال…', '');
+            const subject = 'تذكير — مواعيد محالة (' + g.list.length + '): ' + g.title;
+            return sendEmailJS(g.mails, subject, alertMessage(g))
+                .then(function () { setAlertMsg(i, 'تم إرسال التنبيه بنجاح ✓', 'ok'); })
+                .catch(function (e) { setAlertMsg(i, 'تعذّر الإرسال: ' + e.message, 'err'); });
+        }
+
+        function sendAllAlerts() {
+            const sub = document.getElementById('alerts-sub');
+            let i = 0;
+            const next = function () {
+                while (i < ALERT_GROUPS.length && !ALERT_GROUPS[i].list.length) i++;
+                if (i >= ALERT_GROUPS.length) {
+                    if (sub) sub.textContent = 'تم إرسال جميع التنبيهات ✓';
+                    return;
+                }
+                sendAlertGroup(i).then(function () { i++; next(); });
+            };
+            next();
+        }
+
+        function testEmail() {
+            const st = document.getElementById('ej-status');
+            saveEmailCfg();
+            if (st) { st.textContent = 'جارٍ إرسال الاختبار…'; st.style.color = 'var(--muted)'; }
+            sendEmailJS(ALERT_OFFICE_MAILS, 'اختبار — نظام إدارة المواعيد',
+                'هذه رسالة اختبار من نظام إدارة المواعيد — أمانة منطقة الرياض.\nتاريخ الإرسال: ' + new Date().toLocaleString('en-GB'))
+                .then(function () { if (st) { st.textContent = 'تم إرسال رسالة الاختبار ✓'; st.style.color = '#7ee0a8'; } })
+                .catch(function (e) { if (st) { st.textContent = 'فشل: ' + e.message; st.style.color = '#ff9b9b'; } });
+        }
+
+        function openAlertsSettings() {
+            closeAlerts();
+            openSettings();
+            switchSettingsTab('alerts');
+        }
+
+        function maybeAutoAlert() {
+            const cfg = emailCfg();
+            if (!cfg.user || !cfg.service || !cfg.template || !cfg.auto) return;
+            const pad = function (n) { return (n < 10 ? '0' : '') + n; };
+            const iso = function (d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+            const now = new Date();
+            const today = iso(now);
+            const soon = [today, iso(new Date(now.getTime() + 86400000))];
+            const stampKey = 'ej_sent_on';
+            if (localStorage.getItem(stampKey) === today) return;
+            const groups = alertGroups().filter(function (g) {
+                return g.list.some(function (a) { return soon.indexOf(a.date || '') !== -1; });
+            });
+            if (!groups.length) return;
+            localStorage.setItem(stampKey, today);
+            let i = 0;
+            const next = function () {
+                if (i >= groups.length) return;
+                const g = groups[i++];
+                const subject = 'تذكير تلقائي — مواعيد اليوم/الغد المحالة (' + g.list.length + '): ' + g.title;
+                sendEmailJS(g.mails, subject, alertMessage(g)).then(next).catch(function () { next(); });
+            };
+            next();
+        }
+
+        const WA_DEFAULT_FROM = '+14155238886';
+        let waDirty = false;
+
+        function loadWaCfg() {
+            const def = {
+                enabled: false, mode: 'manual', sid: '', token: '', from: WA_DEFAULT_FROM,
+                rows: [
+                    { label: 'مكتب المدير العام', num: '' },
+                    { label: 'إدارة رخص البناء', num: '' },
+                    { label: 'إدارة الرخص التجارية والاستثمارية', num: '' },
+                    { label: 'إدارة شؤون الأراضي', num: '' }
+                ]
+            };
+            try {
+                const raw = localStorage.getItem('wa_cfg');
+                if (raw) {
+                    const o = JSON.parse(raw);
+                    if (o && typeof o === 'object') {
+                        return {
+                            enabled: !!o.enabled,
+                            mode: o.mode || 'manual',
+                            sid: o.sid || '',
+                            token: o.token || '',
+                            from: o.from || WA_DEFAULT_FROM,
+                            csid: o.csid || '',
+                            rows: (Array.isArray(o.rows) && o.rows.length) ? o.rows : def.rows
+                        };
+                    }
+                }
+            } catch (e) {}
+            return def;
+        }
+        let WA = loadWaCfg();
+
+        function waEsc(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+        function waNormNum(n) { return String(n == null ? '' : n).replace(/[^0-9]/g, ''); }
+
+        function renderWaRows() {
+            const tb = document.getElementById('wa-numbers');
+            if (!tb) return;
+            tb.innerHTML = WA.rows.map(function (r, i) {
+                return '<tr>' +
+                    '<td><input type="text" value="' + waEsc(r.label) + '" data-wa-f="label" data-i="' + i + '"></td>' +
+                    '<td><input type="text" dir="ltr" placeholder="+9665XXXXXXXX" value="' + waEsc(r.num) + '" data-wa-f="num" data-i="' + i + '"></td>' +
+                    '<td style="text-align:center;"><button type="button" class="btn-ghost" onclick="waRemoveRow(' + i + ')">🗑️</button></td>' +
+                    '</tr>';
+            }).join('');
+        }
+
+        function waReadRows() {
+            const tb = document.getElementById('wa-numbers');
+            const rows = [];
+            if (!tb) return rows;
+            Array.prototype.slice.call(tb.querySelectorAll('tr')).forEach(function (tr) {
+                const l = tr.querySelector('[data-wa-f="label"]');
+                const n = tr.querySelector('[data-wa-f="num"]');
+                if (!l || !n) return;
+                rows.push({ label: l.value.trim(), num: n.value.trim() });
+            });
+            return rows;
+        }
+
+        function waAddRow() {
+            WA.rows = waReadRows();
+            WA.rows.push({ label: '', num: '' });
+            renderWaRows();
+        }
+
+        function waRemoveRow(i) {
+            WA.rows = waReadRows();
+            WA.rows.splice(i, 1);
+            renderWaRows();
+        }
+
+        function loadWaIntoForm() {
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('wa-enabled')) return;
+            WA = loadWaCfg();
+            g('wa-enabled').checked = WA.enabled;
+            g('wa-mode').value = WA.mode;
+            g('wa-sid').value = WA.sid;
+            g('wa-token').value = WA.token;
+            g('wa-from').value = WA.from;
+            if (g('wa-csid')) g('wa-csid').value = WA.csid || '';
+            g('wa-test-num').value = '';
+            renderWaRows();
+            const st = g('wa-status');
+            if (st) {
+                if (WA.sid && WA.token) {
+                    st.textContent = WA.enabled ? 'الخدمة مفعّلة ✓' : 'البيانات محفوظة — التفعيل مغلق حاليًا';
+                    st.style.color = WA.enabled ? '#7ee0a8' : '#f0ad4e';
+                } else {
+                    st.textContent = 'أدخل Account SID و Auth Token ثم احفظ — الإرسال لا يعمل بدونهما';
+                    st.style.color = '#f0ad4e';
+                }
+            }
+        }
+
+        function saveWaCfg(showMsg) {
+            const g = function (id) { return document.getElementById(id); };
+            if (!g('wa-enabled')) return;
+            WA = {
+                enabled: g('wa-enabled').checked,
+                mode: g('wa-mode').value,
+                sid: g('wa-sid').value.trim(),
+                token: g('wa-token').value.trim(),
+                from: g('wa-from').value.trim() || WA_DEFAULT_FROM,
+                csid: g('wa-csid') ? g('wa-csid').value.trim() : (WA.csid || ''),
+                rows: waReadRows()
+            };
+            localStorage.setItem('wa_cfg', JSON.stringify(WA));
+            waDirty = true;
+            scheduleSync();
+            const st = g('wa-status');
+            if (st) { st.textContent = 'تم حفظ إعدادات الواتساب ✓' + (showMsg ? '' : ''); st.style.color = '#7ee0a8'; }
+        }
+
+        function waNumsFor(deptName) {
+            const key = normStr(deptName || '');
+            const out = [];
+            if (!key) return out;
+            WA.rows.forEach(function (r) {
+                const raw = (r.num || '').trim();
+                const lbl = normStr(r.label || '');
+                if (!waNormNum(raw) || !lbl) return;
+                if (/مكتب|المدير|مدير عام/.test(lbl)) return;
+                if (lbl.indexOf(key) !== -1 || key.indexOf(lbl) !== -1) out.push(raw);
+            });
+            return out;
+        }
+
+        function waOfficeNums() {
+            return WA.rows.filter(function (r) {
+                return /مكتب|المدير|director office/.test(normStr(r.label || '')) && waNormNum(r.num || '');
+            }).map(function (r) { return (r.num || '').trim(); });
+        }
+
+        function groupWaNums(g) {
+            const office = waOfficeNums();
+            if (!g || !g.title) return office;
+            if (/مكتب|المدير/.test(normStr(g.title))) return office;
+            return waNumsFor(g.title).concat(office);
+        }
+
+        function waSend(to, body) {
+            if (!WA.sid || !WA.token) {
+                return Promise.reject(new Error('بيانات Twilio غير مكتملة — الإعدادات ← تبويب الواتساب'));
+            }
+            if (!/^\+[0-9]{8,15}$/.test(String(to).trim())) {
+                return Promise.reject(new Error('رقم غير صالح (الصيغة الدولية): ' + to));
+            }
+            const sid = WA.sid.trim();
+            const auth = 'Basic ' + btoa(unescape(encodeURIComponent(sid + ':' + WA.token.trim())));
+            const params = new URLSearchParams();
+            params.set('To', String(to).trim());
+            params.set('From', (WA.from || WA_DEFAULT_FROM).trim());
+            params.set('Body', String(body).slice(0, 1500));
+            if (WA.csid) {
+                params.set('ContentSid', WA.csid.trim());
+                params.set('ContentVariables', JSON.stringify({ '1': String(body).slice(0, 1020) }));
+            }
+            return fetch('https://api.twilio.com/2010-04-01/Accounts/' + encodeURIComponent(sid) + '/Messages.json', {
+                method: 'POST',
+                headers: {
+                    'Authorization': auth,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: params.toString()
+            }).then(function (r) {
+                return r.json().catch(function () { return {}; }).then(function (j) {
+                    if (!r.ok) throw new Error(j && j.message ? j.message : ('HTTP ' + r.status));
+                    return j;
+                });
+            });
+        }
+
+        function waBodyReferral(a) {
+            return 'تنبيه: موعد محال على ' + (a.department || 'غير محدد') + '\n' +
+                'الاسم: ' + (a.name || '') + '\nالموضوع: ' + (a.subject || '') + '\n' +
+                'التاريخ: ' + arDate(a.date) + ' — ' + arTime(a.time) + '\nالرقم: ' + (a.number || '');
+        }
+
+        function waBodyDone(a) {
+            return 'اكتمل إجراء موعد:\n' +
+                'الاسم: ' + (a.name || '') + '\nالموضوع: ' + (a.subject || '') + '\n' +
+                'التاريخ: ' + arDate(a.date) + ' — ' + arTime(a.time) + '\n' +
+                'الحالة: ' + (a.status || '') + '\nالرقم: ' + (a.number || '');
+        }
+
+        function waDoneStatus(v) {
+            return /منجز|مكتمل|منتهي|موق|اعتمد|مؤرشف/.test(normStr(v || ''));
+        }
+
+        function waNotify(event, a) {
+            if (!WA.enabled || !a) return;
+            const mode = WA.mode || 'manual';
+            const want = mode === 'both' || (mode === 'referral' && event === 'referral') || (mode === 'done' && event === 'done');
+            if (!want) return;
+            const body = event === 'done' ? waBodyDone(a) : waBodyReferral(a);
+            const seen = {};
+            const nums = groupWaNums({ title: a.department || '' }).filter(function (n) {
+                const k = waNormNum(n);
+                if (!k || seen[k]) return false;
+                seen[k] = true;
+                return true;
+            });
+            nums.forEach(function (n) {
+                waSend(n, body).catch(function (e) { console.warn('تنبيه واتساب:', n, e.message || e); });
+            });
+        }
+
+        function sendAlertWa(i) {
+            const g = ALERT_GROUPS[i];
+            if (!g) return;
+            const nums = groupWaNums(g).filter(function (n) { return waNormNum(n); });
+            if (!nums.length) { setAlertMsg(i, 'لا توجد أرقام واتساب مضبوطة — الإعدادات ← تبويب الواتساب', ''); return; }
+            const body = 'تذكير — مواعيد محالة (' + g.list.length + ') على ' + g.title + '\n' +
+                g.list.slice(0, 20).map(function (a) {
+                    return '• ' + (a.name || '') + ' | ' + (a.subject || '') + ' | ' + arDate(a.date);
+                }).join('\n') +
+                (g.list.length > 20 ? '\n… و' + (g.list.length - 20) + ' مواعيد أخرى' : '');
+            setAlertMsg(i, 'جارٍ إرسال الواتساب…', '');
+            Promise.all(nums.map(function (n) { return waSend(n, body); }))
+                .then(function () { setAlertMsg(i, 'تم إرسال الواتساب إلى ' + nums.length + ' رقم ✓', 'ok'); })
+                .catch(function (e) { setAlertMsg(i, 'تعذّر إرسال الواتساب: ' + e.message, 'err'); });
+        }
+
+        function testWa() {
+            saveWaCfg();
+            const g = function (id) { return document.getElementById(id); };
+            const st = g('wa-status');
+            const picked = g('wa-test-num').value.trim() || (WA.rows.map(function (r) { return (r.num || '').trim(); }).filter(Boolean)[0] || '');
+            if (!picked) { if (st) { st.textContent = 'حدد رقمًا للتجربة أولًا'; st.style.color = '#ff9b9b'; } return; }
+            if (st) { st.textContent = 'جارٍ إرسال رسالة الاختبار…'; st.style.color = 'var(--muted)'; }
+            waSend(picked, 'رسالة اختبار من نظام إدارة المواعيد — أمانة منطقة الرياض ✓')
+                .then(function () { if (st) { st.textContent = 'تم الإرسال بنجاح إلى ' + picked + ' ✓'; st.style.color = '#7ee0a8'; } })
+                .catch(function (e) { if (st) { st.textContent = 'فشل: ' + e.message; st.style.color = '#ff9b9b'; } });
+        }
+
+        function registerRows() {
+            const list = roleAll().slice();
+            list.sort(function (x, y) {
+                const dx = (x.date || '') + 'T' + (x.time || '');
+                const dy = (y.date || '') + 'T' + (y.time || '');
+                return dx < dy ? -1 : (dx > dy ? 1 : 0);
+            });
+            return list;
+        }
+
+        function openRegister() {
+            if (!currentUser || currentUser.role !== 'admin') return;
+            const esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+            const list = registerRows();
+            const body = document.getElementById('register-body');
+            body.innerHTML = list.length
+                ? list.map(a => '<tr><td>' + esc(a.name) + '</td><td>' + esc(a.subject) + '</td><td>' + esc(arDate(a.date)) + '</td></tr>').join('')
+                : '<tr><td class="register-empty" colspan="3">لا توجد مواعيد مسجلة</td></tr>';
+            document.getElementById('reg-subtitle').textContent = 'عدد المواعيد: ' + list.length + ' — تاريخ الطباعة: ' + new Date().toLocaleDateString('en-GB');
+            document.getElementById('register-overlay').style.display = 'flex';
+        }
+
+        function closeRegister() {
+            document.getElementById('register-overlay').style.display = 'none';
+        }
+
+        function printRegister() {
+            document.body.classList.add('print-register');
+            window.print();
         }
 
         function exportExcel() {
             const list = getFiltered();
             if (list.length === 0) { alert('لا توجد بيانات للتصدير'); return; }
 
-            const headers = ['الرقم', 'الاسم', 'رقم الهوية', 'الموضوع', 'نص الطلب', 'تاريخ الموعد', 'وقت الموعد', 'رقم الجوال', 'نوع الموعد', 'الإدارة المختصة', 'الافادة', 'رأي المدير العام', 'المرفقات', 'التقييم', 'حالة الطلب'];
+            const headers = ['الرقم', 'الاسم', 'رقم الهوية', 'رقم الجوال', 'الموضوع', 'نص الطلب', 'نوع الموعد', 'الإدارة المختصة', 'تاريخ الموعد', 'وقت الموعد', 'الافادة', 'رأي المدير العام', 'المرفقات', 'حالة الطلب'];
             const esc = s => String(s == null ? '' : s)
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
             const cell = v => `<Cell><Data ss:Type="String">${esc(v)}</Data></Cell>`;
 
             const headerRow = `<Row>${headers.map(cell).join('')}</Row>`;
-            const attach = a => a.attachmentDetails ? a.attachments + ' - ' + a.attachmentDetails : a.attachments;
+            const attach = a => a.attachments;
             const bodyRows = list.map(a => `<Row>
-                ${cell(a.number)}${cell(a.name)}${cell(a.idNumber)}${cell(a.subject)}${cell(a.requestText)}${cell(a.date)}${cell(a.time)}${cell(a.phone)}${cell(a.meetingType)}${cell(a.department)}${cell(a.statement)}${cell(a.directorOpinion)}${cell(attach(a))}${cell(a.evaluation)}${cell(a.status)}
+                ${cell(a.number)}${cell(a.name)}${cell(a.idNumber)}${cell(a.phone)}${cell(a.subject)}${cell(a.requestText)}${cell(a.meetingType)}${cell(a.department)}${cell(a.date)}${cell(a.time)}${cell(a.statement)}${cell(a.directorOpinion)}${cell(attach(a))}${cell(a.status)}
             </Row>`).join('');
 
             const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -2130,6 +3088,109 @@ ${bodyRows}
                 .replace(/\s+/g, '');
         }
 
+        let PDFJS_PROMISE = null;
+        let TPL_BUILD_PROMISE = null;
+        function loadPdfJs() {
+            if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+            if (PDFJS_PROMISE) return PDFJS_PROMISE;
+            PDFJS_PROMISE = new Promise(function (resolve, reject) {
+                const s = document.createElement('script');
+                s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                s.onload = function () {
+                    try {
+                        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    } catch (e) {}
+                    resolve(window.pdfjsLib);
+                };
+                s.onerror = function () { reject(new Error('pdfjs-load')); };
+                document.head.appendChild(s);
+            });
+            return PDFJS_PROMISE;
+        }
+
+        function dataUrlToUint8(dataUrl) {
+            const base64 = String(dataUrl).split(',')[1] || '';
+            const bin = atob(base64);
+            const arr = new Uint8Array(bin.length);
+            for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+            return arr;
+        }
+
+        async function renderPdfPages(dataUrl) {
+            const pdfjsLib = await loadPdfJs();
+            const pdf = await pdfjsLib.getDocument({ data: dataUrlToUint8(dataUrl) }).promise;
+            const out = [];
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const viewport = page.getViewport({ scale: 2 });
+                const canvas = document.createElement('canvas');
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                out.push(canvas.toDataURL('image/jpeg', 0.85));
+            }
+            return out;
+        }
+
+        function tplFileHeadHtml(logoSrc, n, num) {
+            return '<div class="tpl-file-head">' +
+                (logoSrc ? '<img src="' + logoSrc + '" alt="شعار أمانة الرياض">' : '') +
+                '<div class="tpl-head-text">' +
+                    '<div class="tpl-org">أمانة منطقة الرياض</div>' +
+                    '<div class="tpl-dept">قطاع الأمانة - غرب الرياض</div>' +
+                    '<div class="tpl-sys">مكتب مدير عام تنمية المدينة</div>' +
+                '</div>' +
+                '<div class="tpl-no">مرفق رقم: ' + n + ' — طلب رقم: ' + num + '</div>' +
+            '</div>';
+        }
+
+        function tplFileItemHtml(headHtml, innerHtml) {
+            return '<div class="tpl-file-item">' + headHtml + '<div class="tpl-file-body">' + innerHtml + '</div></div>';
+        }
+
+        function tplDocPlaceholder(name) {
+            return '<div class="tpl-file-doc"><div class="tpl-file-ico">📎</div>' +
+                '<div class="tpl-file-docname">' + escapeHtml(name || 'مرفق') + '</div>' +
+                '<div class="tpl-file-docnote">تعذّر معاينة هذا النوع من الملفات داخل النموذج</div></div>';
+        }
+
+        async function buildTemplateFiles(a, logoSrc) {
+            const fullBox = document.getElementById('tpl-files-full');
+            if (!fullBox) return;
+            fullBox.innerHTML = '';
+            const num = a.number || '-';
+            const files = a.files || [];
+            let counter = 0;
+            for (let k = 0; k < files.length; k++) {
+                const f = files[k];
+                const type = String(f.type || '');
+                const data = String(f.data || '');
+                const isImg = type.startsWith('image/') || data.startsWith('data:image/');
+                const isPdf = !isImg && (type.indexOf('pdf') !== -1 || data.indexOf('data:application/pdf') === 0);
+                if (isPdf) {
+                    let pages = null;
+                    try { pages = await renderPdfPages(f.data); } catch (e) { pages = null; }
+                    if (pages && pages.length) {
+                        for (let p = 0; p < pages.length; p++) {
+                            counter++;
+                            const head = tplFileHeadHtml(logoSrc, counter, num);
+                            fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(head, '<img src="' + pages[p] + '" alt="مرفق">'));
+                        }
+                    } else {
+                        counter++;
+                        fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), tplDocPlaceholder(f.name)));
+                    }
+                    continue;
+                }
+                counter++;
+                const inner = isImg ? ('<img src="' + f.data + '" alt="مرفق">') : tplDocPlaceholder(f.name);
+                fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), inner));
+            }
+        }
+
         function openTemplate(id) {
             const a = appointments.find(x => x.id === id);
             if (!a) return;
@@ -2170,24 +3231,7 @@ ${bodyRows}
 
             const hasAttach = a.attachments === 'يوجد مرفقات';
             document.getElementById('cb-attach0').textContent = hasAttach ? '☐' : '☑';
-            document.getElementById('cb-attach1').textContent = '☐';
             document.getElementById('cb-attach2').textContent = hasAttach ? '☑' : '☐';
-            document.getElementById('tpl-attachDetails').textContent = a.attachmentDetails || '';
-
-            const filesBox = document.getElementById('tpl-files');
-            if (filesBox) {
-                const files = a.files || [];
-                if (files.length === 0) {
-                    filesBox.innerHTML = '';
-                } else {
-                    filesBox.innerHTML = '<b>الملفات المرفقة:</b> ' + files.map(f => {
-                        if ((f.type || '').startsWith('image/')) {
-                            return `<div style="margin:6px 0;"><img src="${f.data}" alt="${escapeHtml(f.name)}" style="max-height:170px;max-width:100%;border:1px solid #94a3a0;"><div style="font-size:0.75em;">${escapeHtml(f.name)}</div></div>`;
-                        }
-                        return `<div>📄 ${escapeHtml(f.name)}</div>`;
-                    }).join('');
-                }
-            }
 
             if (!a.templateSaved) {
                 a.templateSaved = true;
@@ -2196,19 +3240,8 @@ ${bodyRows}
             }
 
             const fullBox = document.getElementById('tpl-files-full');
-            if (fullBox) {
-                const files = a.files || [];
-                if (files.length === 0) {
-                    fullBox.innerHTML = '';
-                } else {
-                    fullBox.innerHTML = '<div class="tpl-sec"><span>المرفقات</span> كامل مرفقات الموعد</div>' + files.map(f => {
-                        if ((f.type || '').startsWith('image/')) {
-                            return '<div class="tpl-file-item"><div style="font-size:0.8em;margin:8px 0 3px;">📄 ' + escapeHtml(f.name) + '</div><img src="' + f.data + '" alt="' + escapeHtml(f.name) + '"></div>';
-                        }
-                        return '<div class="tpl-file-item">📄 ' + escapeHtml(f.name) + '</div>';
-                    }).join('');
-                }
-            }
+            if (fullBox) { fullBox.innerHTML = ''; }
+            TPL_BUILD_PROMISE = buildTemplateFiles(a, logo ? logo.src : '');
 
             document.getElementById('template-overlay').style.display = 'flex';
         }
@@ -2218,14 +3251,16 @@ ${bodyRows}
         }
 
         function returnToStatement(id) {
-            if (!confirm('هل تريد إعادة الموعد للإدارة المختصة لتكتب إفادة جديدة؟')) return;
+            if (!confirm('هل تريد إعادة تحويل الموعد للإدارة المختصة لتحرير الإفادة؟')) return;
             const idx = appointments.findIndex(x => x.id === id);
             if (idx !== -1) {
+                appointments[idx].signed = false;
+                delete appointments[idx].signedBy;
+                delete appointments[idx].signedAt;
                 appointments[idx].statementSent = false;
                 appointments[idx].completed = false;
                 appointments[idx].returnedBy = currentUser ? currentUser.name : '';
                 appointments[idx].returnedAt = new Date().toISOString();
-                appointments[idx].statement = '';
                 saveAppointments(appointments);
             }
             render();
@@ -2235,6 +3270,9 @@ ${bodyRows}
             if (!confirm('هل تريد طلب تعديل الإفادة من الإدارة المختصة؟')) return;
             const idx = appointments.findIndex(x => x.id === id);
             if (idx !== -1) {
+                appointments[idx].signed = false;
+                delete appointments[idx].signedBy;
+                delete appointments[idx].signedAt;
                 appointments[idx].statementSent = false;
                 appointments[idx].completed = false;
                 appointments[idx].editRequestedBy = currentUser ? currentUser.name : '';
@@ -2267,20 +3305,33 @@ ${bodyRows}
             a.signedAt = new Date().toISOString();
             saveAppointments(appointments);
             render();
+            waNotify('done', a);
         }
 
         function toggleDiscussion(id) {
             const idx = appointments.findIndex(x => x.id === id);
             if (idx === -1) return;
             const a = appointments[idx];
-            a.forDiscussion = !a.forDiscussion;
-            if (a.forDiscussion) {
+            if (!a.forDiscussion) {
+                if (!confirm('تعليم الموعد "للمناقشة" يعيد الموعد للإدارة المختصة (تحت الإجراء) لاستكمال الإجراءات. هل تريد المتابعة؟')) return;
+                a.forDiscussion = true;
                 a.discussionBy = currentUser ? currentUser.name : '';
                 a.discussionAt = new Date().toISOString();
-            } else {
-                delete a.discussionBy;
-                delete a.discussionAt;
+                a.completed = false;
+                a.statementSent = false;
+                a.signed = false;
+                delete a.signedBy;
+                delete a.signedAt;
+                a.status = '';
+                saveAppointments(appointments);
+                render();
+                alert('عاد الموعد إلى ' + (a.department || 'الإدارة المختصة') + ' — تحت الإجراء');
+                waNotify('referral', a);
+                return;
             }
+            a.forDiscussion = false;
+            delete a.discussionBy;
+            delete a.discussionAt;
             saveAppointments(appointments);
             render();
         }
@@ -2375,13 +3426,22 @@ ${bodyRows}
             alert('تم حفظ التوقيع');
         }
 
-        function printTemplate(withFiles) {
-            document.body.classList.toggle('print-files', !!withFiles);
+        async function printTemplate(withFiles) {
+            if (withFiles && TPL_BUILD_PROMISE) {
+                try { await TPL_BUILD_PROMISE; } catch (e) {}
+            }
+            let wf = !!withFiles;
+            if (wf) {
+                const box = document.getElementById('tpl-files-full');
+                wf = !!(box && box.querySelector('.tpl-file-item'));
+            }
+            document.body.classList.toggle('print-files', wf);
             window.print();
         }
 
         window.addEventListener('afterprint', function () {
             document.body.classList.remove('print-files');
+            document.body.classList.remove('print-register');
         });
 
         function exportTemplateWord() {
@@ -2398,10 +3458,10 @@ ${bodyRows}
                 .tpl-sec { margin: 16px 0 8px; font-weight: 700; color: #006A46; font-size: 1.05em; }
                 .tpl-sec span { background: #006A46; color: #ffffff; padding: 2px 12px; border-radius: 20px; font-size: 0.85em; }
                 .tpl-grid { width: 100%; border-collapse: collapse; }
-                .tpl-grid td { border: 1px solid #94a3a0; padding: 8px 10px; vertical-align: top; white-space: pre-line; }
-                .tpl-grid .lbl { width: 115px; background: #eef7f1; color: #006A46; font-weight: 700; text-align: center; font-size: 0.85em; }
+                .tpl-grid td { border: 1px solid #94a3a0; padding: 8px 10px; vertical-align: top; white-space: pre-line; font-size: 0.84em; }
+                .tpl-grid .lbl { width: 115px; background: #eef7f1; color: #006A46; font-weight: 700; text-align: center; font-size: 0.77em; }
                 .tpl-chk { width: 100%; border-collapse: collapse; }
-                .tpl-chk td { border: 1px solid #94a3a0; padding: 10px 12px; }
+                .tpl-chk td { border: 1px solid #94a3a0; padding: 10px 12px; font-size: 0.84em; }
                 .tpl-cb { font-weight: 700; color: #006A46; }
                 .tpl-note { font-size: 0.78em; color: #888; text-align: left; font-style: italic; }
                 .tpl-box { border: 1px solid #94a3a0; min-height: 60px; padding: 12px; white-space: pre-line; }
@@ -2410,8 +3470,10 @@ ${bodyRows}
 
         #tpl-files-full { display: none; }
                 .tpl-sign { margin-top: 26px; }
-                .tpl-sign div { border-top: 1px solid #777; padding-top: 6px; color: #444; width: 230px; text-align: center; }
-                .tpl-sign img { height: 50px; max-width: 170px; object-fit: contain; display: block; margin: 0 auto 6px; }
+                .tpl-sign-block { width: 290px; text-align: center; }
+                .tpl-sign-title { color: #006A46; font-weight: 700; margin-bottom: 6px; }
+                .tpl-sign-name { padding-top: 4px; color: #333; font-weight: 700; }
+                .tpl-sign img { height: 72px; max-width: 230px; object-fit: contain; display: block; margin: 4px auto 2px; }
                 .tpl-foot { text-align: center; margin-top: 24px; font-size: 0.8em; color: #888; border-top: 1px solid #ccc; padding-top: 8px; }
             `;
 
@@ -2442,7 +3504,17 @@ ${doc.innerHTML}
         }
 
         searchInput.addEventListener('input', render);
-        if (filterEval) filterEval.addEventListener('change', render);
+
+        ['login-user', 'login-pass'].forEach(function (id) {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
+            });
+        });
+        const ghTokInput = document.getElementById('gh-token-input');
+        if (ghTokInput) ghTokInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); connectGh(); }
+        });
 
         document.getElementById('year').textContent = new Date().getFullYear();
         bootstrap();

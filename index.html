@@ -1711,6 +1711,7 @@
         let currentTab = 'active';
         let adminDeptFilter = null;
         let adminThreadFilter = false;
+        let deptThreadFilter = false;
 
         function baseScoped() {
             if (currentUser && currentUser.role === 'dept') {
@@ -1743,6 +1744,7 @@
                 return list.filter(a => a.withOffice);
             }
             if (role === 'dept') {
+                if (deptThreadFilter) return list.filter(a => a.toDeptNote);
                 return list.filter(a => !a.completed && !a.statementSent);
             }
             if (role === 'director') {
@@ -2056,6 +2058,11 @@
             const a = appointments.find(x => x.id === id);
             if (!a) return;
             threadEditingId = id;
+            if (currentUser && currentUser.role === 'dept' && a.toDeptNote) {
+                a.toDeptNote = false;
+                saveAppointments(appointments);
+                render();
+            }
             document.getElementById('th-info').textContent = 'الموعد #' + (a.number || '') + ' — ' + (a.name || '') + ' — ' + (a.department || '');
             const hist = document.getElementById('th-history');
             const msgs = Array.isArray(a.thread) ? a.thread : [];
@@ -2094,6 +2101,7 @@
                 at: new Date().toISOString()
             });
             appointments[idx].withOffice = !!(currentUser && currentUser.role === 'dept');
+            appointments[idx].toDeptNote = !!(currentUser && currentUser.role === 'admin');
             saveAppointments(appointments);
             closeThread();
             render();
@@ -2418,6 +2426,7 @@
                             <span class="appt-name">${escapeHtml(a.name)}</span>
                             <span class="appt-dept">${escapeHtml(a.department) || '-'}</span>
                             ${a.withOffice ? '<span class="badge" style="background:#fff3cd;color:#8a6d3b;">📨 مع المكتب</span>' : ''}
+                            ${a.toDeptNote ? '<span class="badge" style="background:#e7f1ff;color:#1d4ed8;">💬 إيضاح من المكتب</span>' : ''}
                             ${a.signed ? '<span class="badge" style="background:#e6f4ea;color:#1e7e34;">موقّع</span>' : ''}
                             ${a.forDiscussion ? '<span class="badge" style="background:#fff3cd;color:#8a6d3b;">للمناقشة</span>' : ''}
                             <span class="appt-actions">${actionButtons(a)}</span>
@@ -2434,6 +2443,7 @@
                         <div class="appt-line"><b>الإفادة:</b> ${escapeHtml(a.statement) || '-'}</div>
                         <div class="appt-line col-dir-op"><b>رأي المدير العام:</b> ${escapeHtml(a.directorOpinion) || '-'}</div>
                         <div class="appt-line"><b>حالة الطلب:</b> ${escapeHtml(a.status) || '-'}</div>
+                        ${threadNoteLine(a)}
                         <div class="appt-stages col-stages">${stageChips(a)}</div>
                     </div>
                 `).join('');
@@ -2445,6 +2455,7 @@
         function statShowAll() {
             adminDeptFilter = null;
             adminThreadFilter = false;
+            deptThreadFilter = false;
             switchTab('active');
         }
 
@@ -2457,6 +2468,7 @@
         function statShowDone() {
             adminDeptFilter = null;
             adminThreadFilter = false;
+            deptThreadFilter = false;
             switchTab('done');
         }
 
@@ -2464,6 +2476,18 @@
             adminDeptFilter = null;
             adminThreadFilter = !adminThreadFilter;
             switchTab('active');
+        }
+
+        function statShowDeptThread() {
+            deptThreadFilter = !deptThreadFilter;
+            switchTab('active');
+        }
+
+        function threadNoteLine(a) {
+            if (!currentUser || currentUser.role !== 'dept' || !a.toDeptNote || !Array.isArray(a.thread)) return '';
+            const m = a.thread.slice().reverse().find(x => x.role === 'admin');
+            if (!m) return '';
+            return '<div class="appt-line" style="background:#fff3cd;border:1px solid #f0ad4e;border-radius:8px;"><b>💬 مكتب المدير العام:</b> ' + escapeHtml(m.text || '') + '</div>';
         }
 
         function stageChips(a) {
@@ -2485,7 +2509,7 @@
                 deptBtns += `<button class="row-btn" title="نموذج" onclick="openTemplate(${a.id})">📄</button>`;
                 deptBtns += `<button class="row-btn" title="افادة الإدارة" onclick="openStatement(${a.id})">✍️</button>
                         <button class="row-btn" title="المرفقات" onclick="openFiles(${a.id})">📎${(a.files && a.files.length) ? a.files.length : ''}</button>`;
-                deptBtns += `<button class="row-btn" title="إعادة الطلب للمكتب مع ملاحظة" onclick="openThread(${a.id})" style="${a.withOffice ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">↩️</button>`;
+                deptBtns += `<button class="row-btn" title="💬 مراسلة المكتب — إيضاحات وردود" onclick="openThread(${a.id})" style="${(a.withOffice || a.toDeptNote) ? 'background:#fff3cd;border-color:#f0ad4e;' : ''}">↩️</button>`;
                 return deptBtns;
             }
             if (currentUser && currentUser.role === 'director') {
@@ -2566,7 +2590,9 @@
                 const boxDone = `<div class="stat-box"><div class="stat-number">${done}</div><div class="stat-label">منجز</div></div>`;
                 const boxWip = `<div class="stat-box"><div class="stat-number">${wip}</div><div class="stat-label">تحت الإجراء</div></div>`;
                 const boxRate = `<div class="stat-box"><div class="stat-number">${rate}%</div><div class="stat-label">نسبة الإنجاز</div></div>`;
-                grid.innerHTML = boxTotal + boxDone + boxWip + boxRate;
+                const deptNotes = list.filter(a => a.toDeptNote).length;
+                const boxNotes = `<div class="stat-box clickable${deptThreadFilter ? ' active' : ''}" onclick="statShowDeptThread()"><div class="stat-number">${deptNotes}</div><div class="stat-label">💬 إيضاحات من المكتب</div></div>`;
+                grid.innerHTML = boxTotal + boxNotes + boxDone + boxWip + boxRate;
             }
         }
 

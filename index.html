@@ -1475,6 +1475,13 @@
             syncTimer = setTimeout(function () { syncTimer = null; doSync(); }, 600);
         }
 
+        let retryTimer = null;
+
+        function retrySync() {
+            if (retryTimer) return;
+            retryTimer = setTimeout(function () { retryTimer = null; scheduleSync(); }, 8000);
+        }
+
         async function doSync() {
             if (!GH_TOKEN) return;
             if (syncing) { syncAgain = true; return; }
@@ -1493,6 +1500,7 @@
                     } catch (e) {
                         if (e.conflict && attempt < 6) { await new Promise(function (res) { setTimeout(res, 400); }); continue; }
                         console.warn('sync failed', e);
+                        if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) retrySync();
                         break;
                     }
                 }

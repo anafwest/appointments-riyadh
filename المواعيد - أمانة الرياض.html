@@ -1711,7 +1711,6 @@
         let currentTab = 'active';
         let adminDeptFilter = null;
         let adminThreadFilter = false;
-        let deptThreadFilter = false;
         let adminStatusFilter = false;
 
         function baseScoped() {
@@ -1748,7 +1747,6 @@
                 return list.filter(a => a.withOffice);
             }
             if (role === 'dept') {
-                if (deptThreadFilter) return list.filter(a => a.toDeptNote);
                 return list.filter(a => !a.completed);
             }
             if (role === 'director') {
@@ -2468,7 +2466,6 @@
         function statShowAll() {
             adminDeptFilter = null;
             adminThreadFilter = false;
-            deptThreadFilter = false;
             adminStatusFilter = false;
             switchTab('active');
         }
@@ -2483,7 +2480,6 @@
         function statShowDone() {
             adminDeptFilter = null;
             adminThreadFilter = false;
-            deptThreadFilter = false;
             adminStatusFilter = false;
             switchTab('done');
         }
@@ -2499,11 +2495,6 @@
             adminDeptFilter = null;
             adminThreadFilter = false;
             adminStatusFilter = !adminStatusFilter;
-            switchTab('active');
-        }
-
-        function statShowDeptThread() {
-            deptThreadFilter = !deptThreadFilter;
             switchTab('active');
         }
 
@@ -2617,9 +2608,7 @@
                 const boxDone = `<div class="stat-box"><div class="stat-number">${done}</div><div class="stat-label">منجز</div></div>`;
                 const boxWip = `<div class="stat-box"><div class="stat-number">${wip}</div><div class="stat-label">تحت الإجراء</div></div>`;
                 const boxRate = `<div class="stat-box"><div class="stat-number">${rate}%</div><div class="stat-label">نسبة الإنجاز</div></div>`;
-                const deptNotes = list.filter(a => a.toDeptNote).length;
-                const boxNotes = `<div class="stat-box clickable${deptThreadFilter ? ' active' : ''}" onclick="statShowDeptThread()"><div class="stat-number">${deptNotes}</div><div class="stat-label">💬 إيضاحات من المكتب</div></div>`;
-                grid.innerHTML = boxTotal + boxNotes + boxDone + boxWip + boxRate;
+                grid.innerHTML = boxTotal + boxDone + boxWip + boxRate;
             }
         }
 

@@ -1712,6 +1712,7 @@
         let adminDeptFilter = null;
         let adminThreadFilter = false;
         let deptThreadFilter = false;
+        let adminStatusFilter = false;
 
         function baseScoped() {
             if (currentUser && currentUser.role === 'dept') {
@@ -1740,12 +1741,15 @@
             if (currentTab === 'done') {
                 return list.filter(isDone);
             }
+            if (role === 'admin' && adminStatusFilter && currentTab === 'active') {
+                return list.filter(a => a.signed && !a.status);
+            }
             if (role === 'admin' && adminThreadFilter) {
                 return list.filter(a => a.withOffice);
             }
             if (role === 'dept') {
                 if (deptThreadFilter) return list.filter(a => a.toDeptNote);
-                return list.filter(a => !a.completed && !a.statementSent);
+                return list.filter(a => !a.completed);
             }
             if (role === 'director') {
                 return list.filter(a => a.completed && !a.signed);
@@ -2456,11 +2460,13 @@
             adminDeptFilter = null;
             adminThreadFilter = false;
             deptThreadFilter = false;
+            adminStatusFilter = false;
             switchTab('active');
         }
 
         function statDeptUnder(d) {
             adminThreadFilter = false;
+            adminStatusFilter = false;
             adminDeptFilter = (adminDeptFilter && normStr(adminDeptFilter) === normStr(d)) ? null : d;
             switchTab('active');
         }
@@ -2469,12 +2475,21 @@
             adminDeptFilter = null;
             adminThreadFilter = false;
             deptThreadFilter = false;
+            adminStatusFilter = false;
             switchTab('done');
         }
 
         function statShowThread() {
             adminDeptFilter = null;
             adminThreadFilter = !adminThreadFilter;
+            adminStatusFilter = false;
+            switchTab('active');
+        }
+
+        function statShowNoStatus() {
+            adminDeptFilter = null;
+            adminThreadFilter = false;
+            adminStatusFilter = !adminStatusFilter;
             switchTab('active');
         }
 
@@ -2497,6 +2512,7 @@
             if (a.files && a.files.length) chips.push('<span class="chip chip-info">📎 ' + a.files.length + '</span>');
             if (a.thread && a.thread.length) chips.push('<span class="chip chip-warn">💬 ' + a.thread.length + '</span>');
             if (a.withOffice) chips.push('<span class="chip chip-warn">مع المكتب</span>');
+            if (a.returnedAt) chips.push('<span class="chip chip-warn">أُعيدت لاستكمال الإفادة</span>');
             if (a.forDiscussion) chips.push('<span class="chip chip-warn">مناقشة</span>');
             if (a.signed) chips.push('<span class="chip chip-ok">توقيع</span>');
             if (a.status) chips.push('<span class="chip chip-ok">حالة</span>');
@@ -2575,7 +2591,7 @@
                     { name: 'إدارة شؤون الأراضي', label: 'شؤون الأراضي تحت الإجراء', icon: '🗺️' }
                 ];
                 const under = list.filter(a => !isDone(a));
-                let html = statBox(total, 'إجمالي المواعيد', '📋', !adminDeptFilter && !adminThreadFilter && currentTab !== 'done', 'statShowAll()');
+                let html = statBox(total, 'إجمالي المواعيد', '📋', !adminDeptFilter && !adminThreadFilter && !adminStatusFilter && currentTab !== 'done', 'statShowAll()');
                 depts.forEach(d => {
                     const cnt = under.filter(a => normStr(a.department) === normStr(d.name)).length;
                     const active = adminDeptFilter && normStr(adminDeptFilter) === normStr(d.name);
@@ -2583,7 +2599,9 @@
                 });
                 const threadCnt = list.filter(a => a.withOffice).length;
                 html += statBox(threadCnt, '📨 طلبات إيضاحات من الإدارات', '📨', adminThreadFilter && currentTab === 'active', 'statShowThread()');
-                html += statBox(done, 'إجمالي الطلبات المنجزة', '✅', !adminDeptFilter && !adminThreadFilter && currentTab === 'done', 'statShowDone()');
+                const noStatus = list.filter(a => a.signed && !a.status).length;
+                html += statBox(noStatus, '🏷️ موقّعة بانتظار حالة الطلب', '🏷️', adminStatusFilter && currentTab === 'active', 'statShowNoStatus()');
+                html += statBox(done, 'إجمالي الطلبات المنجزة', '✅', !adminDeptFilter && !adminThreadFilter && !adminStatusFilter && currentTab === 'done', 'statShowDone()');
                 grid.innerHTML = html;
             } else {
                 const boxTotal = `<div class="stat-box"><div class="stat-number">${total}</div><div class="stat-label">إجمالي المواعيد</div></div>`;

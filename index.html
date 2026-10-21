@@ -1948,6 +1948,11 @@
                     if (send || !appointments[idx].statementSent) {
                         appointments[idx].statementSent = true;
                         appointments[idx].completed = true;
+                        if (appointments[idx].forDiscussion) {
+                            appointments[idx].forDiscussion = false;
+                            delete appointments[idx].discussionBy;
+                            delete appointments[idx].discussionAt;
+                        }
                     } else {
                         appointments[idx].statementSent = true;
                     }
@@ -3215,14 +3220,26 @@ ${bodyRows}
             const idx = appointments.findIndex(x => x.id === id);
             if (idx === -1) return;
             const a = appointments[idx];
-            a.forDiscussion = !a.forDiscussion;
-            if (a.forDiscussion) {
+            if (!a.forDiscussion) {
+                if (!confirm('تعليم الموعد "للمناقشة" يعيد الموعد للإدارة المختصة (تحت الإجراء) لاستكمال الإجراءات. هل تريد المتابعة؟')) return;
+                a.forDiscussion = true;
                 a.discussionBy = currentUser ? currentUser.name : '';
                 a.discussionAt = new Date().toISOString();
-            } else {
-                delete a.discussionBy;
-                delete a.discussionAt;
+                a.completed = false;
+                a.statementSent = false;
+                a.signed = false;
+                delete a.signedBy;
+                delete a.signedAt;
+                a.status = '';
+                saveAppointments(appointments);
+                render();
+                alert('عاد الموعد إلى ' + (a.department || 'الإدارة المختصة') + ' — تحت الإجراء');
+                waNotify('referral', a);
+                return;
             }
+            a.forDiscussion = false;
+            delete a.discussionBy;
+            delete a.discussionAt;
             saveAppointments(appointments);
             render();
         }

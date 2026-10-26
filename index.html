@@ -2597,10 +2597,12 @@
                     const active = adminDeptFilter && normStr(adminDeptFilter) === normStr(d.name);
                     html += statBox(cnt, d.label, d.icon, active, "statDeptUnder('" + d.name.replace(/'/g, "\\'") + "')");
                 });
-                const threadCnt = list.filter(a => a.withOffice).length;
-                html += statBox(threadCnt, '📨 طلبات إيضاحات من الإدارات', '📨', adminThreadFilter && currentTab === 'active', 'statShowThread()');
-                const noStatus = list.filter(a => a.signed && !a.status).length;
-                html += statBox(noStatus, '🏷️ موقّعة بانتظار حالة الطلب', '🏷️', adminStatusFilter && currentTab === 'active', 'statShowNoStatus()');
+                if (role === 'admin') {
+                    const threadCnt = list.filter(a => a.withOffice).length;
+                    html += statBox(threadCnt, '📨 طلبات إيضاحات من الإدارات', '📨', adminThreadFilter && currentTab === 'active', 'statShowThread()');
+                    const noStatus = list.filter(a => a.signed && !a.status).length;
+                    html += statBox(noStatus, '🏷️ موقّعة بانتظار حالة الطلب', '🏷️', adminStatusFilter && currentTab === 'active', 'statShowNoStatus()');
+                }
                 html += statBox(done, 'إجمالي الطلبات المنجزة', '✅', !adminDeptFilter && !adminThreadFilter && !adminStatusFilter && currentTab === 'done', 'statShowDone()');
                 grid.innerHTML = html;
             } else {

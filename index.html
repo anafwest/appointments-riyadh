@@ -1461,10 +1461,10 @@
         function scheduleRender() {
             if (renderScheduled) return;
             renderScheduled = true;
-            requestAnimationFrame(function () {
+            setTimeout(function () {
                 renderScheduled = false;
                 try { render(); } catch (e) { console.warn('render failed', e); }
-            });
+            }, 0);
         }
 
         function markDirtyByDiff() {
@@ -2444,6 +2444,7 @@
         }
 
         function render() {
+            if (!tableBody) return;
             const list = getFiltered();
 
             if (list.length === 0) {

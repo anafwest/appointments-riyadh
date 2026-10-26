@@ -1457,14 +1457,19 @@
 
         let appointments = [];
         let renderScheduled = false;
+        let renderPending = false;
 
         function scheduleRender() {
+            renderPending = true;
             if (renderScheduled) return;
             renderScheduled = true;
             setTimeout(function () {
                 renderScheduled = false;
-                try { render(); } catch (e) { console.warn('render failed', e); }
-            }, 0);
+                if (renderPending) {
+                    renderPending = false;
+                    try { render(); } catch (e) { console.warn('render failed', e); }
+                }
+            }, 10);
         }
 
         function markDirtyByDiff() {
@@ -2445,6 +2450,7 @@
 
         function render() {
             if (!tableBody) return;
+            renderPending = false;
             const list = getFiltered();
 
             if (list.length === 0) {

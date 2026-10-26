@@ -447,11 +447,10 @@
         .statement-card .st-locked-note { background: #fff3cd; border: 1px solid #f0ad4e; color: #7a5b00; border-radius: 8px; padding: 8px 12px; font-size: 0.85em; margin-bottom: 12px; line-height: 1.6; }
         .statement-card textarea { min-height: 120px; }
         .statement-card .actions { display: flex; gap: 10px; margin-top: 14px; justify-content: flex-end; }
-        .statement-card .th-history { max-height: 240px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; margin-bottom: 12px; background: rgba(0, 0, 0, 0.15); }
-        .th-msg { border-bottom: 1px dashed var(--line); padding: 8px 4px; font-size: 0.9em; line-height: 1.7; white-space: pre-wrap; word-break: break-word; }
-        .th-msg:last-child { border-bottom: 0; }
-        .th-msg .th-meta { color: var(--muted); font-size: 0.82em; margin-bottom: 2px; }
-        .th-empty { color: var(--muted); font-size: 0.88em; text-align: center; padding: 10px; }
+        .statement-card .th-history { max-height: 280px; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 14px; background: rgba(255, 255, 255, 0.03); display: flex; flex-direction: column; gap: 10px; }
+        .th-msg { background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(95, 211, 160, 0.25); border-radius: 10px; padding: 10px 12px; font-size: 0.93em; line-height: 1.9; white-space: pre-wrap; word-break: break-word; color: var(--text); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+        .th-msg .th-meta { color: var(--mint); font-size: 0.84em; margin-bottom: 4px; font-weight: 600; }
+        .th-empty { color: var(--muted); font-size: 0.9em; text-align: center; padding: 14px; background: rgba(255, 255, 255, 0.03); border-radius: 10px; border: 1px dashed var(--line); }
 
         .register-card { width: 860px; max-width: 100%; max-height: 88vh; overflow-y: auto; }
         .register-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
@@ -1457,6 +1456,16 @@
         }
 
         let appointments = [];
+        let renderScheduled = false;
+
+        function scheduleRender() {
+            if (renderScheduled) return;
+            renderScheduled = true;
+            requestAnimationFrame(function () {
+                renderScheduled = false;
+                try { render(); } catch (e) { console.warn('render failed', e); }
+            });
+        }
 
         function markDirtyByDiff() {
             const seen = {};
@@ -1468,6 +1477,7 @@
             appointments = list;
             markDirtyByDiff();
             scheduleSync();
+            scheduleRender();
         }
 
         function scheduleSync() {
@@ -2067,19 +2077,24 @@
             }
             document.getElementById('th-info').textContent = 'الموعد #' + (a.number || '') + ' — ' + (a.name || '') + ' — ' + (a.department || '');
             const hist = document.getElementById('th-history');
-            const msgs = Array.isArray(a.thread) ? a.thread : [];
+            const msgs = Array.isArray(a.thread) ? a.thread.slice().sort(function (x, y) {
+                const tx = x.at ? new Date(x.at).getTime() : 0;
+                const ty = y.at ? new Date(y.at).getTime() : 0;
+                return tx - ty;
+            }) : [];
             hist.innerHTML = msgs.length ? msgs.map(function (m) {
                 const who = m.role === 'admin' ? 'مكتب المدير العام' : (m.role === 'director' ? 'المدير العام' : (m.by || 'الإدارة'));
-                const when = m.at ? new Date(m.at).toLocaleString('en-GB') : '';
-                return '<div class="th-msg"><div class="th-meta">' + escapeHtml(who) + (when ? ' — ' + escapeHtml(when) : '') + '</div>' + escapeHtml(m.text || '') + '</div>';
+                const when = m.at ? new Date(m.at).toLocaleString('ar-SA') : '';
+                return '<div class="th-msg"><div class="th-meta">' + escapeHtml(who) + (when ? ' • ' + escapeHtml(when) : '') + '</div><div>' + escapeHtml(m.text || '').replace(/\n/g, '<br>') + '</div></div>';
             }).join('') : '<div class="th-empty">لا توجد ملاحظات سابقة</div>';
+            hist.scrollTop = hist.scrollHeight;
             document.getElementById('th-text').value = '';
             const sendBtn = document.getElementById('th-send-btn');
             const isDept = currentUser && currentUser.role === 'dept';
             const isAdmin = currentUser && currentUser.role === 'admin';
             if (sendBtn) {
                 sendBtn.style.display = (isDept || isAdmin) ? 'inline-block' : 'none';
-                sendBtn.textContent = isDept ? '📤 إرسال الطلب للمكتب' : '📤 إرسال وإعادة الطلب للإدارة';
+                sendBtn.textContent = isDept ? '📤 إرسال الطلب للمكتب' : '📤 إرسال الإيضاح وإعادة الطلب للإدارة';
             }
             document.getElementById('thread-overlay').style.display = 'flex';
         }
@@ -2109,6 +2124,10 @@
                 appointments[idx].returnedBy = currentUser.name;
                 appointments[idx].returnedAt = new Date().toISOString();
                 appointments[idx].statementSent = true;
+                delete appointments[idx].signed;
+                delete appointments[idx].signedBy;
+                delete appointments[idx].signedAt;
+                appointments[idx].status = '';
             } else {
                 appointments[idx].withOffice = true;
                 appointments[idx].toDeptNote = false;
@@ -2468,6 +2487,7 @@
             adminThreadFilter = false;
             adminStatusFilter = false;
             switchTab('active');
+            scheduleRender();
         }
 
         function statDeptUnder(d) {
@@ -2475,6 +2495,7 @@
             adminStatusFilter = false;
             adminDeptFilter = (adminDeptFilter && normStr(adminDeptFilter) === normStr(d)) ? null : d;
             switchTab('active');
+            scheduleRender();
         }
 
         function statShowDone() {
@@ -2482,6 +2503,7 @@
             adminThreadFilter = false;
             adminStatusFilter = false;
             switchTab('done');
+            scheduleRender();
         }
 
         function statShowThread() {
@@ -2489,6 +2511,7 @@
             adminThreadFilter = !adminThreadFilter;
             adminStatusFilter = false;
             switchTab('active');
+            scheduleRender();
         }
 
         function statShowNoStatus() {
@@ -2496,6 +2519,7 @@
             adminThreadFilter = false;
             adminStatusFilter = !adminStatusFilter;
             switchTab('active');
+            scheduleRender();
         }
 
         function threadNoteLine(a) {

@@ -1480,10 +1480,13 @@
         }
 
         function saveAppointments(list) {
-            appointments = list;
+            appointments = list.slice ? list.slice() : list;
             markDirtyByDiff();
+            renderPending = false;
+            renderScheduled = false;
+            try { render(); } catch(e){}
             scheduleSync();
-            scheduleRender();
+            try { setTimeout(function(){ if (dirtyIds.size || dirtyDeletes.size) doSync(); }, 50); } catch(e){}
         }
 
         function scheduleSync() {
@@ -2398,10 +2401,11 @@
             try { if (currentTab === 'done') currentTab = 'active'; } catch(e){}
             try { adminDeptFilter = null; adminThreadFilter = false; adminStatusFilter = false; } catch(e){}
             markDirtyByDiff();
-            scheduleSync();
             renderPending = false;
             renderScheduled = false;
             render();
+            scheduleSync();
+            try { setTimeout(function(){ if (dirtyIds.size || dirtyDeletes.size) doSync(); }, 100); } catch(e){}
             resetForm();
             alert('تم حفظ الموعد بنجاح');
             if (savedWa && savedWa.department && normStr(savedWa.department) !== normStr(prevDeptWa)) waNotify('referral', savedWa);

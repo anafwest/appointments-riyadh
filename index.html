@@ -1475,7 +1475,16 @@
 
         function markDirtyByDiff() {
             const seen = {};
-            appointments.forEach(a => { const s = JSON.stringify(a); seen[a.id] = true; if (LAST_SYNCED[a.id] !== s) dirtyIds.add(a.id); });
+            appointments.forEach(a => { 
+                try {
+                    const s = JSON.stringify(a); 
+                    seen[a.id] = true; 
+                    if (LAST_SYNCED[a.id] !== s) dirtyIds.add(a.id); 
+                } catch(e) {
+                    seen[a.id] = true;
+                    dirtyIds.add(a.id);
+                }
+            });
             Object.keys(LAST_SYNCED).forEach(k => { if (!seen[k]) dirtyDeletes.add(Number(k)); });
         }
 
@@ -1504,10 +1513,11 @@
         async function doSync() {
             if (!GH_TOKEN) return;
             if (syncing) { syncAgain = true; return; }
+            if (!dirtyIds.size && !dirtyDeletes.size && !usersDirty && !deptsDirty && !metaDirty && !waDirty) return;
             syncing = true;
             try {
                 let attempt = 0;
-                while (attempt < 6) {
+                while (attempt < 10) {
                     attempt++;
                     try {
                         const db = await ghGetDb();
@@ -1517,7 +1527,7 @@
                         adoptDb(db);
                         break;
                     } catch (e) {
-                        if (e.conflict && attempt < 6) { await new Promise(function (res) { setTimeout(res, 400); }); continue; }
+                        if (e.conflict && attempt < 10) { await new Promise(function (res) { setTimeout(res, 500); }); continue; }
                         console.warn('sync failed', e);
                         if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) retrySync();
                         break;

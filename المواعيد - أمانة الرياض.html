@@ -1546,7 +1546,13 @@
             const waChanged = pushed ? (pushed.wa !== JSON.stringify(WA || null)) : false;
             const metaChanged = pushed ? (pushed.meta !== JSON.stringify(META || null)) : false;
 
-            appointments = db.appointments || [];
+            const incoming = db.appointments || [];
+            if (!incoming.length && appointments.length) {
+                console.warn('adoptDb: تجاهل تحديث فارغ من GitHub للحفاظ على المواعيد الحالية');
+                return;
+            }
+
+            appointments = incoming;
             META = Object.assign({}, db.meta || {}, metaChanged ? (META || {}) : {});
             if (usersChanged) { usersDirty = true; }
             else { usersDirty = false; if (db.users && db.users.length) USERS = db.users; }
@@ -1567,6 +1573,8 @@
             markDirtyByDiff();
             if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) scheduleSync();
             renderDeptOptions();
+            renderPending = false;
+            renderScheduled = false;
             render();
             if (document.getElementById('settings-overlay').style.display === 'flex') { renderUsersTable(); renderDeptsList(); }
         }
@@ -2344,18 +2352,19 @@
                 data.toDeptNote = false;
                 data.thread = Array.isArray(data.thread) ? data.thread : [];
                 data.files = Array.isArray(data.files) ? data.files : [];
-                if (data.status == null) data.status = '';
+                if (data.status == null || data.status === undefined) data.status = '';
+                else data.status = String(data.status).trim();
                 appointments.push(data);
                 savedWa = data;
             }
 
             appointments = appointments.slice();
+            try { if (currentTab === 'done') currentTab = 'active'; } catch(e){}
+            try { adminDeptFilter = null; adminThreadFilter = false; adminStatusFilter = false; } catch(e){}
             markDirtyByDiff();
             scheduleSync();
             renderPending = false;
             renderScheduled = false;
-            try { if (currentTab === 'done') currentTab = 'active'; } catch(e){}
-            try { adminDeptFilter = null; adminThreadFilter = false; adminStatusFilter = false; } catch(e){}
             render();
             resetForm();
             alert('تم حفظ الموعد بنجاح');

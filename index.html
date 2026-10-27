@@ -2407,12 +2407,14 @@
             try { if (currentTab === 'done') currentTab = 'active'; } catch(e){}
             try { adminDeptFilter = null; adminThreadFilter = false; adminStatusFilter = false; } catch(e){}
             try { localStorage.setItem('appointments_backup', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
+            try { localStorage.setItem('appointments_force', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
             markDirtyByDiff();
             renderPending = false;
             renderScheduled = false;
             render();
             scheduleSync();
-            try { setTimeout(function(){ doSync(); }, 50); } catch(e){}
+            try { doSync(); } catch(e){}
+            try { setTimeout(function(){ doSync(); }, 30); } catch(e){}
             resetForm();
             alert('تم حفظ الموعد بنجاح');
             if (savedWa && savedWa.department && normStr(savedWa.department) !== normStr(prevDeptWa)) waNotify('referral', savedWa);

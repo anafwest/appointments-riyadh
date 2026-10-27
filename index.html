@@ -2337,6 +2337,14 @@
             } else {
                 data.id = Date.now();
                 data.createdAt = new Date().toISOString();
+                data.completed = false;
+                data.signed = false;
+                data.statementSent = false;
+                data.withOffice = false;
+                data.toDeptNote = false;
+                data.thread = Array.isArray(data.thread) ? data.thread : [];
+                data.files = Array.isArray(data.files) ? data.files : [];
+                if (data.status == null) data.status = '';
                 appointments.push(data);
                 savedWa = data;
             }
@@ -2346,6 +2354,8 @@
             scheduleSync();
             renderPending = false;
             renderScheduled = false;
+            try { if (currentTab === 'done') currentTab = 'active'; } catch(e){}
+            try { adminDeptFilter = null; adminThreadFilter = false; adminStatusFilter = false; } catch(e){}
             render();
             resetForm();
             alert('تم حفظ الموعد بنجاح');

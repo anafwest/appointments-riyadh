@@ -2336,13 +2336,18 @@
                 }
             } else {
                 data.id = Date.now();
+                data.createdAt = new Date().toISOString();
                 appointments.push(data);
                 savedWa = data;
             }
 
-            saveAppointments(appointments);
-            resetForm();
+            appointments = appointments.slice();
+            markDirtyByDiff();
+            scheduleSync();
+            renderPending = false;
+            renderScheduled = false;
             render();
+            resetForm();
             alert('تم حفظ الموعد بنجاح');
             if (savedWa && savedWa.department && normStr(savedWa.department) !== normStr(prevDeptWa)) waNotify('referral', savedWa);
         });
@@ -2451,6 +2456,7 @@
         function render() {
             if (!tableBody) return;
             renderPending = false;
+            renderScheduled = false;
             const list = getFiltered();
 
             if (list.length === 0) {

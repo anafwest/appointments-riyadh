@@ -1397,6 +1397,7 @@
         let usersDirty = false, deptsDirty = false, metaDirty = false;
         let syncing = false, syncAgain = false, syncTimer = null;
         let lastLocalAdd = 0;
+        let pendingForce = [];
 
         function ghHeaders() {
             const h = { 'Accept': 'application/vnd.github+json' };
@@ -1513,11 +1514,11 @@
         async function doSync() {
             if (!GH_TOKEN) return;
             if (syncing) { syncAgain = true; return; }
-            if (!dirtyIds.size && !dirtyDeletes.size && !usersDirty && !deptsDirty && !metaDirty && !waDirty) return;
+            if (!dirtyIds.size && !dirtyDeletes.size && !usersDirty && !deptsDirty && !metaDirty && !waDirty && !pendingForce.length) return;
             syncing = true;
             try {
                 let attempt = 0;
-                while (attempt < 10) {
+                while (attempt < 15) {
                     attempt++;
                     try {
                         const db = await ghGetDb();
@@ -1525,11 +1526,12 @@
                         db.rev = (db.rev || 0) + 1;
                         await ghPutDb(db, 'تحديث بيانات المواعيد');
                         adoptDb(db);
+                        pendingForce = [];
                         break;
                     } catch (e) {
-                        if (e.conflict && attempt < 10) { await new Promise(function (res) { setTimeout(res, 500); }); continue; }
+                        if (e.conflict && attempt < 15) { await new Promise(function (res) { setTimeout(res, 600); }); continue; }
                         console.warn('sync failed', e);
-                        if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) retrySync();
+                        if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty || pendingForce.length) retrySync();
                         break;
                     }
                 }
@@ -2400,7 +2402,9 @@
                 appointments.push(data);
                 savedWa = data;
                 lastLocalAdd = Date.now();
+                pendingForce.push(JSON.stringify(data));
                 try { localStorage.setItem('appointments_backup', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
+                try { localStorage.setItem('appointments_force', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
             }
 
             appointments = appointments.slice();
@@ -2412,9 +2416,11 @@
             renderPending = false;
             renderScheduled = false;
             render();
+            try { dirtyIds.add(data.id); } catch(e){}
             scheduleSync();
             try { doSync(); } catch(e){}
-            try { setTimeout(function(){ doSync(); }, 30); } catch(e){}
+            try { setTimeout(function(){ doSync(); }, 20); } catch(e){}
+            try { setTimeout(function(){ doSync(); }, 100); } catch(e){}
             resetForm();
             alert('تم حفظ الموعد بنجاح');
             if (savedWa && savedWa.department && normStr(savedWa.department) !== normStr(prevDeptWa)) waNotify('referral', savedWa);

@@ -1603,17 +1603,29 @@
                 console.warn('تم تجاهل تحديث فارغ من GitHub (حماية من اختفاء البيانات)');
                 return;
             }
-            appointments = incoming;
+            if (incoming.length < appointments.length) {
+                const map = {};
+                incoming.forEach(a => { map[a.id] = true; });
+                const missing = appointments.filter(a => !map[a.id]);
+                if (missing.length) {
+                    console.warn('تم تجاهل تحديث GitHub لحماية المواعيد المضافة محليًا');
+                    return;
+                }
+            }
+            appointments = incoming.slice();
             META = db.meta || {};
             LAST_REV = db.rev || 0;
             LAST_SYNCED = {};
             appointments.forEach(a => { LAST_SYNCED[a.id] = JSON.stringify(a); });
+            dirtyIds.clear(); dirtyDeletes.clear();
             const settingsOpen = document.getElementById('settings-overlay').style.display === 'flex';
             if (!settingsOpen) {
                 if (db.users && db.users.length) USERS = db.users;
                 if (db.departments && db.departments.length) DEPARTMENTS = db.departments;
                 renderDeptOptions();
             }
+            renderPending = false;
+            renderScheduled = false;
             render();
         }
 

@@ -1,20 +1,5 @@
 /**
  * خدمة قاعدة البيانات لنظام إدارة المواعيد — أمانة منطقة الرياض
- * ------------------------------------------------------------------
- * المسارات:
- *   GET  /api/db                → قراءة قاعدة البيانات
- *   GET  /api/db?rev=N          → قراءة خفيفة (تُرجع notModified إذا لا يوجد تغيير)
- *   GET  /api/db?full=1         → قراءة كاملة
- *   POST /api/db?op=patch       → حفظ التغييرات (المواعيد المتغيّرة فقط)
- *   POST /api/db                → حفظ كامل (مسار احتياطي متوافق مع النسخة القديمة)
- *   POST /api/db?op=file        → رفع مرفق كملف منفصل في مجلد attachments
- *   GET  /api/db?op=file&p=..   → تنزيل مرفق (بدل raw.githubusercontent)
- *   POST /api/whatsapp          → إرسال رسالة واتساب عبر Twilio
- *
- * المتغيّرات المطلوبة في Cloudflare (Settings → Variables and Secrets):
- *   GH_TOKEN  (سرّي)  رمز وصول GitHub بصلاحية محتوى المستودع
- * اختيارية:
- *   GH_OWNER, GH_REPO, GH_BRANCH
  */
 
 const DEFAULTS = {
@@ -24,7 +9,7 @@ const DEFAULTS = {
     path: 'db.json'
 };
 
-const MAX_FILE_BYTES = 8 * 1024 * 1024;         // أقصى حجم للمرفق الواحد
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
 const EMPTY_DB_MSG = 'مرفوض: محاولة إفراغ قاعدة البيانات (حماية من فقدان المواعيد)';
 
 function cfg(env) {
@@ -36,7 +21,7 @@ function cfg(env) {
         base: env.GH_API_BASE || 'https://api.github.com',
         rawBase: env.GH_RAW_BASE || 'https://raw.githubusercontent.com',
         token: env.GH_TOKEN || env.GITHUB_TOKEN || '',
-        cache: Number(env.DB_CACHE_MS || 8000)
+        cache: Number(env.DB_CACHE_MS || 1000)
     };
 }
 
@@ -96,8 +81,6 @@ function normalize(db) {
     db.rev = Number(db.rev || 0);
     return db;
 }
-
-/* ------------------------------ ذاكرة مؤقتة ------------------------------ */
 
 let MEM = { ts: 0, sha: null, db: null, text: '' };
 
@@ -161,8 +144,6 @@ async function writeDb(c, db, message, knownSha) {
     return { ok: true, sha: j.content.sha, rev: db.rev };
 }
 
-/* ---------------------------------- API ---------------------------------- */
-
 async function handleDb(request, env, url) {
     const c = cfg(env);
     const op = url.searchParams.get('op') || '';
@@ -208,10 +189,6 @@ async function handlePatch(request, c) {
     }
 
     const cur = await readDb(c, true);
-    const baseSha = String(body.baseSha || '');
-    if (baseSha && cur.sha && baseSha !== cur.sha) {
-        return json({ ok: false, code: 'conflict', error: 'تغيّرت قاعدة البيانات — أعد المحاولة' }, 409);
-    }
 
     const db = normalize(JSON.parse(JSON.stringify(cur.db || {})));
     const byId = {};
@@ -254,14 +231,10 @@ async function handleFullWrite(request, c) {
     }
 
     const cur = await readDb(c, true);
-    const sentSha = String(body.sha || '');
-    if (cur.sha && sentSha && sentSha !== cur.sha) {
-        return json({ ok: false, code: 'conflict', error: 'تغيّرت قاعدة البيانات — أعد المحاولة' }, 409);
-    }
+
     const curCount = (cur.db && cur.db.appointments ? cur.db.appointments.length : 0);
     if (!db.appointments.length && curCount > 0) return json({ ok: false, error: EMPTY_DB_MSG }, 409);
 
-    // حماية إضافية: لا نقبل كتابة كاملة تُسقط مواعيد كثيرة دفعة واحدة
     if (curCount >= 5 && db.appointments.length < Math.floor(curCount * 0.6) && !body.force) {
         return json({
             ok: false,
@@ -278,8 +251,6 @@ async function handleFullWrite(request, c) {
     if (res.conflict) return json({ ok: false, code: 'conflict', error: 'تعارض في التحديث' }, 409);
     return json({ ok: true, sha: res.sha, rev: out.rev });
 }
-
-/* -------------------------------- المرفقات -------------------------------- */
 
 const MIME_EXT = {
     'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
@@ -380,8 +351,6 @@ async function serveFile(c, url) {
     headers.set('Content-Disposition', 'inline');
     return new Response(r.body, { status: 200, headers: headers });
 }
-
-/* -------------------------------- الواتساب -------------------------------- */
 
 async function handleWhatsApp(request) {
     let body;

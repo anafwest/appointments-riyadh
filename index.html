@@ -1,4 +1,113 @@
-﻿<!DOCTYPE html>
+<!-- ==================== محرك FIREBASE اللحظي ==================== -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<script>
+(function() {
+  const firebaseConfig = {
+    apiKey: "AIzaSyCnyHc6EEk74CpVqS23QkUbsqR-TEy6R3o",
+    authDomain: "anafwest-appointments.firebaseapp.com",
+    projectId: "anafwest-appointments",
+    storageBucket: "anafwest-appointments.firebasestorage.app",
+    messagingSenderId: "420917757341",
+    appId: "1:420917757341:web:ac34e5a6d3ecf4489d1b74",
+    measurementId: "G-GNJPQY99H5"
+  };
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const fs = firebase.firestore();
+  const docRef = fs.collection('system').doc('appointments_db');
+
+  let currentDbData = null;
+  let isInitialized = false;
+
+  docRef.onSnapshot(async (doc) => {
+    if (doc.exists) {
+      currentDbData = doc.data();
+      isInitialized = true;
+    } else {
+      try {
+        const res = await window._originalFetch('https://raw.githubusercontent.com/anafwest/appointments-riyadh/main/db.json');
+        const data = await res.json();
+        await docRef.set(data);
+        currentDbData = data;
+      } catch(e) {
+        currentDbData = { appointments: [], users: [], departments: [], meta: {}, rev: 1 };
+        await docRef.set(currentDbData);
+      }
+      isInitialized = true;
+    }
+  });
+
+  window._originalFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+    const opts = args[1] || {};
+    const method = (opts.method || 'GET').toUpperCase();
+
+    if (url.includes('/api/db')) {
+      while (!isInitialized) {
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      if (method === 'GET' || method === 'HEAD') {
+        if (url.includes('op=info')) {
+          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev || 1, bytes: 1000, token: true }), {
+            status: 200, headers: { 'Content-Type': 'application/json' }
+          });
+        }
+        return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev || 1, db: currentDbData }), {
+          status: 200, headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (method === 'POST') {
+        let body = {};
+        try { body = JSON.parse(opts.body); } catch(e) {}
+
+        if (url.includes('op=patch')) {
+          const upserts = Array.isArray(body.upserts) ? body.upserts : [];
+          const deletes = Array.isArray(body.deletes) ? body.deletes : [];
+          
+          let appointments = Array.isArray(currentDbData.appointments) ? [...currentDbData.appointments] : [];
+          const byId = {};
+          appointments.forEach(a => { if (a && a.id != null) byId[String(a.id)] = a; });
+          
+          upserts.forEach(a => { if (a && a.id != null) byId[String(a.id)] = a; });
+          deletes.forEach(id => { delete byId[String(id)]; });
+          
+          currentDbData.appointments = Object.values(byId);
+          if (Array.isArray(body.users)) currentDbData.users = body.users;
+          if (Array.isArray(body.departments)) currentDbData.departments = body.departments;
+          if (body.meta) currentDbData.meta = Object.assign({}, currentDbData.meta || {}, body.meta);
+          currentDbData.rev = (currentDbData.rev || 0) + 1;
+          currentDbData.updatedAt = Date.now();
+
+          await docRef.set(currentDbData);
+          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev }), {
+            status: 200, headers: { 'Content-Type': 'application/json' }
+          });
+        } else {
+          if (body.db) {
+            currentDbData = body.db;
+            currentDbData.rev = (currentDbData.rev || 0) + 1;
+            currentDbData.updatedAt = Date.now();
+            await docRef.set(currentDbData);
+          }
+          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData ? currentDbData.rev : 1 }), {
+            status: 200, headers: { 'Content-Type': 'application/json' }
+          });
+        }
+      }
+    }
+
+    return window._originalFetch.apply(this, args);
+  };
+})();
+</script>
+<!-- ==================== نهاية كود FIREBASE ==================== -->﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <!-- ==================== محرك FIREBASE اللحظي ==================== -->

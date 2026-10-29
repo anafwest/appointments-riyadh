@@ -1,226 +1,6 @@
-<!-- ==================== محرك FIREBASE اللحظي ==================== -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-<script>
-(function() {
-  const firebaseConfig = {
-    apiKey: "AIzaSyCnyHc6EEk74CpVqS23QkUbsqR-TEy6R3o",
-    authDomain: "anafwest-appointments.firebaseapp.com",
-    projectId: "anafwest-appointments",
-    storageBucket: "anafwest-appointments.firebasestorage.app",
-    messagingSenderId: "420917757341",
-    appId: "1:420917757341:web:ac34e5a6d3ecf4489d1b74",
-    measurementId: "G-GNJPQY99H5"
-  };
-
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  const fs = firebase.firestore();
-  const docRef = fs.collection('system').doc('appointments_db');
-
-  let currentDbData = null;
-  let isInitialized = false;
-
-  docRef.onSnapshot(async (doc) => {
-    if (doc.exists) {
-      currentDbData = doc.data();
-      isInitialized = true;
-    } else {
-      try {
-        const res = await window._originalFetch('https://raw.githubusercontent.com/anafwest/appointments-riyadh/main/db.json');
-        const data = await res.json();
-        await docRef.set(data);
-        currentDbData = data;
-      } catch(e) {
-        currentDbData = { appointments: [], users: [], departments: [], meta: {}, rev: 1 };
-        await docRef.set(currentDbData);
-      }
-      isInitialized = true;
-    }
-  });
-
-  window._originalFetch = window.fetch;
-  window.fetch = async function(...args) {
-    const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
-    const opts = args[1] || {};
-    const method = (opts.method || 'GET').toUpperCase();
-
-    if (url.includes('/api/db')) {
-      while (!isInitialized) {
-        await new Promise(r => setTimeout(r, 100));
-      }
-
-      if (method === 'GET' || method === 'HEAD') {
-        if (url.includes('op=info')) {
-          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev || 1, bytes: 1000, token: true }), {
-            status: 200, headers: { 'Content-Type': 'application/json' }
-          });
-        }
-        return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev || 1, db: currentDbData }), {
-          status: 200, headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      if (method === 'POST') {
-        let body = {};
-        try { body = JSON.parse(opts.body); } catch(e) {}
-
-        if (url.includes('op=patch')) {
-          const upserts = Array.isArray(body.upserts) ? body.upserts : [];
-          const deletes = Array.isArray(body.deletes) ? body.deletes : [];
-          
-          let appointments = Array.isArray(currentDbData.appointments) ? [...currentDbData.appointments] : [];
-          const byId = {};
-          appointments.forEach(a => { if (a && a.id != null) byId[String(a.id)] = a; });
-          
-          upserts.forEach(a => { if (a && a.id != null) byId[String(a.id)] = a; });
-          deletes.forEach(id => { delete byId[String(id)]; });
-          
-          currentDbData.appointments = Object.values(byId);
-          if (Array.isArray(body.users)) currentDbData.users = body.users;
-          if (Array.isArray(body.departments)) currentDbData.departments = body.departments;
-          if (body.meta) currentDbData.meta = Object.assign({}, currentDbData.meta || {}, body.meta);
-          currentDbData.rev = (currentDbData.rev || 0) + 1;
-          currentDbData.updatedAt = Date.now();
-
-          await docRef.set(currentDbData);
-          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev }), {
-            status: 200, headers: { 'Content-Type': 'application/json' }
-          });
-        } else {
-          if (body.db) {
-            currentDbData = body.db;
-            currentDbData.rev = (currentDbData.rev || 0) + 1;
-            currentDbData.updatedAt = Date.now();
-            await docRef.set(currentDbData);
-          }
-          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData ? currentDbData.rev : 1 }), {
-            status: 200, headers: { 'Content-Type': 'application/json' }
-          });
-        }
-      }
-    }
-
-    return window._originalFetch.apply(this, args);
-  };
-})();
-</script>
-<!-- ==================== نهاية كود FIREBASE ==================== -->﻿<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <!-- ==================== محرك FIREBASE اللحظي ==================== -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-<script>
-(function() {
-  const firebaseConfig = {
-    apiKey: "AIzaSyCnyHc6EEk74CpVqS23QkUbsqR-TEy6R3o",
-    authDomain: "anafwest-appointments.firebaseapp.com",
-    projectId: "anafwest-appointments",
-    storageBucket: "anafwest-appointments.firebasestorage.app",
-    messagingSenderId: "420917757341",
-    appId: "1:420917757341:web:ac34e5a6d3ecf4489d1b74",
-    measurementId: "G-GNJPQY99H5"
-  };
-
-  firebase.initializeApp(firebaseConfig);
-  const fs = firebase.firestore();
-  const docRef = fs.collection('system').doc('appointments_db');
-
-  let currentDbData = null;
-  let isInitialized = false;
-
-  // الاستماع اللحظي للتغييرات (Realtime Sync)
-  docRef.onSnapshot(async (doc) => {
-    if (doc.exists) {
-      currentDbData = doc.data();
-      isInitialized = true;
-    } else {
-      // نقل تلقائي لبيانات db.json القديمة إلى Firebase أول مرة
-      try {
-        const res = await window._originalFetch('https://raw.githubusercontent.com/anafwest/appointments-riyadh/main/db.json');
-        const data = await res.json();
-        await docRef.set(data);
-        currentDbData = data;
-      } catch(e) {
-        currentDbData = { appointments: [], users: [], departments: [], meta: {}, rev: 1 };
-        await docRef.set(currentDbData);
-      }
-      isInitialized = true;
-    }
-  });
-
-  // تحويل كافة طلبات الموقع إلى Firebase مباشرة
-  window._originalFetch = window.fetch;
-  window.fetch = async function(...args) {
-    const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
-    const opts = args[1] || {};
-    const method = (opts.method || 'GET').toUpperCase();
-
-    if (url.includes('/api/db')) {
-      while (!isInitialized) {
-        await new Promise(r => setTimeout(r, 100));
-      }
-
-      if (method === 'GET' || method === 'HEAD') {
-        if (url.includes('op=info')) {
-          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev || 1, bytes: 1000, token: true }), {
-            status: 200, headers: { 'Content-Type': 'application/json' }
-          });
-        }
-        return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev || 1, db: currentDbData }), {
-          status: 200, headers: { 'Content-Type': 'application/json' }
-        });
-      }
-
-      if (method === 'POST') {
-        let body = {};
-        try { body = JSON.parse(opts.body); } catch(e) {}
-
-        if (url.includes('op=patch')) {
-          const upserts = Array.isArray(body.upserts) ? body.upserts : [];
-          const deletes = Array.isArray(body.deletes) ? body.deletes : [];
-          
-          let appointments = Array.isArray(currentDbData.appointments) ? [...currentDbData.appointments] : [];
-          const byId = {};
-          appointments.forEach(a => { if (a && a.id != null) byId[String(a.id)] = a; });
-          
-          upserts.forEach(a => { if (a && a.id != null) byId[String(a.id)] = a; });
-          deletes.forEach(id => { delete byId[String(id)]; });
-          
-          currentDbData.appointments = Object.values(byId);
-          if (Array.isArray(body.users)) currentDbData.users = body.users;
-          if (Array.isArray(body.departments)) currentDbData.departments = body.departments;
-          if (body.meta) currentDbData.meta = Object.assign({}, currentDbData.meta || {}, body.meta);
-          currentDbData.rev = (currentDbData.rev || 0) + 1;
-          currentDbData.updatedAt = Date.now();
-
-          await docRef.set(currentDbData);
-          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData.rev }), {
-            status: 200, headers: { 'Content-Type': 'application/json' }
-          });
-        } else {
-          if (body.db) {
-            currentDbData = body.db;
-            currentDbData.rev = (currentDbData.rev || 0) + 1;
-            currentDbData.updatedAt = Date.now();
-            await docRef.set(currentDbData);
-          }
-          return new Response(JSON.stringify({ ok: true, sha: 'fb', rev: currentDbData ? currentDbData.rev : 1 }), {
-            status: 200, headers: { 'Content-Type': 'application/json' }
-          });
-        }
-      }
-    }
-
-    return window._originalFetch.apply(this, args);
-  };
-})();
-</script>
-<!-- ==================== نهاية كود FIREBASE ==================== -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>أمانة منطقة الرياض - نظام إدارة المواعيد</title>
@@ -1610,28 +1390,11 @@
         const GH_PATH = 'db.json';
         const GH_BRANCH = 'main';
         const GH_API = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH;
-        /* ============================================================================
-           طبقة التخزين والمزامنة — الإصدار 2 (إصلاح فقدان المواعيد)
-           ----------------------------------------------------------------------------
-           سبب المشكلة السابق:
-             1) كانت المرفقات تُخزَّن Base64 داخل db.json حتى وصل حجمها إلى 16.8MB.
-             2) خدمة الحفظ على الخادم (/api/db) تفشل مع الأحجام الكبيرة (خطأ Cloudflare 1102).
-             3) النسخة الاحتياطية في localStorage تفشل بصمت عند تجاوز 5 ميجابايت.
-           الحل:
-             • المرفقات أصبحت ملفات منفصلة داخل مجلد attachments في مستودع GitHub.
-             • الحفظ يتم بزر واحد على الخادم (op=patch) ويرسل المواعيد المتغيّرة فقط.
-             • نسخة محلية دائمة في IndexedDB (لا حد 5 ميجابايت).
-             • مؤشر حالة حفظ واضح أعلى الصفحة: جارٍ الحفظ / تم الحفظ / تعذّر الحفظ.
-           ============================================================================ */
-
         const API_DB = '/api/db';
-        const FILE_RAW_BASE = 'https://raw.githubusercontent.com/anafwest/appointments-riyadh/main/';
 
-        let SERVER_DB = null;   // قراءة قاعدة البيانات عبر خدمة الخادم
-        let SERVER_PUSH = null; // الكتابة عبر خدمة الخادم
-        let GH_TOKEN = '';
-        try { GH_TOKEN = localStorage.getItem('gh_token') || ''; } catch (e) {}
-
+        let SERVER_DB = null; // null = لم يُفحص، true = خدمة الخادم متاحة، false = غير مهيأة
+        let pollTimer = null;
+        let GH_TOKEN = localStorage.getItem('gh_token') || '';
         let LAST_SHA = null;
         let LAST_REV = -1;
         let META = {};
@@ -1639,23 +1402,10 @@
         let dirtyIds = new Set();
         let dirtyDeletes = new Set();
         let usersDirty = false, deptsDirty = false, metaDirty = false;
-        let syncing = false, syncAgain = false, syncTimer = null, retryTimer = null;
-        let retryDelay = 2500;
-        let pollTimer = null, polling = false;
-        let pendingForce = [];      // توافقية مع الكود القديم
-        let lastLocalAdd = 0;       // توافقية مع الكود القديم
-        let pendingFilesFor = new Set(); // مواعيد تحتوي مرفقات لم تُرفع بعد للخادم
+        let syncing = false, syncAgain = false, syncTimer = null;
+        let lastLocalAdd = 0;
+        let pendingForce = [];
 
-        function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
-
-        function fetchT(url, opts, ms) {
-            opts = opts || {};
-            if (!window.AbortController) return fetch(url, opts);
-            const ctrl = new AbortController();
-            const t = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, ms || 45000);
-            const o = Object.assign({}, opts, { signal: ctrl.signal });
-            return fetch(url, o).then(function (r) { clearTimeout(t); return r; }, function (e) { clearTimeout(t); throw e; });
-        }
         function ghHeaders() {
             const h = { 'Accept': 'application/vnd.github+json' };
             if (GH_TOKEN) h['Authorization'] = 'token ' + GH_TOKEN;
@@ -1665,161 +1415,56 @@
         function b64DecodeUnicode(str) { return decodeURIComponent(escape(atob(String(str).replace(/\s/g, '')))); }
 
         function normalizeDb(db) {
-            if (!db || typeof db !== 'object') db = {};
             db.appointments = Array.isArray(db.appointments) ? db.appointments : [];
             db.users = Array.isArray(db.users) ? db.users : [];
             db.departments = Array.isArray(db.departments) ? db.departments : [];
             db.meta = (db.meta && typeof db.meta === 'object' && !Array.isArray(db.meta)) ? db.meta : {};
-            db.wa = (db.wa && typeof db.wa === 'object' && !Array.isArray(db.wa)) ? db.wa : null;
-            db.rev = Number(db.rev || 0);
+            db.rev = db.rev || 0;
             return db;
         }
-        function idKey(x) { return String(x == null ? '' : x); }
-
-        function stripLocal(a) {
-            const c = {};
-            Object.keys(a || {}).forEach(function (k) {
-                if (k.charAt(0) === '_') return;    // حقول مؤقتة في الذاكرة فقط
-                c[k] = a[k];
-            });
-            return c;
-        }
-
-        /* ------------------------------ شارة حالة الحفظ ------------------------------ */
-
-        let badgeEl = null, badgeTimer = null;
-
-        function ensureBadge() {
-            if (badgeEl && document.body.contains(badgeEl)) return badgeEl;
-            badgeEl = document.createElement('div');
-            badgeEl.id = 'sync-badge';
-            badgeEl.style.cssText = 'position:fixed;bottom:14px;left:14px;z-index:99999;font-family:inherit;font-size:13px;' +
-                'padding:8px 14px;border-radius:999px;color:#fff;background:#6b7280;box-shadow:0 6px 20px rgba(0,0,0,.22);' +
-                'display:none;align-items:center;gap:8px;direction:rtl;max-width:80vw;';
-            document.body.appendChild(badgeEl);
-            return badgeEl;
-        }
-        function setSyncStatus(state, msg) {
-            const el = ensureBadge();
-            const colors = { loading: '#6b7280', saving: '#b45309', ok: '#15803d', error: '#b91c1c', offline: '#7c3aed' };
-            const icons = { loading: '⏳', saving: '💾', ok: '✓', error: '⚠', offline: '📴' };
-            el.style.background = colors[state] || '#6b7280';
-            el.textContent = (icons[state] || '') + ' ' + (msg || '');
-            el.style.display = 'inline-flex';
-            if (badgeTimer) { clearTimeout(badgeTimer); badgeTimer = null; }
-            if (state === 'ok') {
-                badgeTimer = setTimeout(function () { try { el.style.display = 'none'; } catch (e) {} }, 3500);
-            }
-        }
-
-        /* ------------------------- تخزين محلي دائم (IndexedDB) ------------------------- */
-
-        const IDB_NAME = 'appointments_local_v2';
-        let idbPromise = null;
-
-        function idbOpen() {
-            if (idbPromise) return idbPromise;
-            idbPromise = new Promise(function (resolve) {
-                try {
-                    if (!('indexedDB' in window)) return resolve(null);
-                    const req = indexedDB.open(IDB_NAME, 1);
-                    req.onupgradeneeded = function () { try { req.result.createObjectStore('kv'); } catch (e) {} };
-                    req.onsuccess = function () { resolve(req.result); };
-                    req.onerror = function () { resolve(null); };
-                    req.onblocked = function () { resolve(null); };
-                } catch (e) { resolve(null); }
-            });
-            return idbPromise;
-        }
-        function idbSet(key, val) {
-            return idbOpen().then(function (db) {
-                if (!db) return false;
-                return new Promise(function (res) {
-                    try {
-                        const tx = db.transaction('kv', 'readwrite');
-                        tx.objectStore('kv').put(val, key);
-                        tx.oncomplete = function () { res(true); };
-                        tx.onerror = function () { res(false); };
-                        tx.onabort = function () { res(false); };
-                    } catch (e) { res(false); }
-                });
-            });
-        }
-        function idbGet(key) {
-            return idbOpen().then(function (db) {
-                if (!db) return null;
-                return new Promise(function (res) {
-                    try {
-                        const tx = db.transaction('kv', 'readonly');
-                        const r = tx.objectStore('kv').get(key);
-                        r.onsuccess = function () { res(r.result == null ? null : r.result); };
-                        r.onerror = function () { res(null); };
-                    } catch (e) { res(null); }
-                });
-            });
-        }
-        let localSaveTimer = null;
-
-        function saveLocalSoon() {
-            if (localSaveTimer) return;
-            localSaveTimer = setTimeout(function () {
-                localSaveTimer = null;
-                saveLocalNow();
-            }, 500);
-        }
-        async function saveLocalNow() {
-            try {
-                const snap = {
-                    appointments: (appointments || []).map(stripLocal),
-                    users: (typeof USERS !== 'undefined' ? USERS : null),
-                    departments: (typeof DEPARTMENTS !== 'undefined' ? DEPARTMENTS : null),
-                    meta: META,
-                    wa: (typeof WA !== 'undefined' ? WA : null),
-                    rev: LAST_REV,
-                    sha: LAST_SHA,
-                    pendingIds: Array.from(dirtyIds || []),
-                    pendingDeletes: Array.from(dirtyDeletes || []),
-                    ts: Date.now()
-                };
-                await idbSet('snapshot', snap);
-            } catch (e) {}
-        }
-        async function loadLocalSnapshot() {
-            try { return await idbGet('snapshot'); } catch (e) { return null; }
-        }
-
-        /* ------------------------------ قراءة قاعدة البيانات ------------------------------ */
 
         async function ghGetDb(needFull) {
+            // جرب الوسيط أولاً (للتوافق إن كان موجوداً)
             if (SERVER_DB !== false) {
                 try {
                     const qs = needFull ? '?full=1&t=' : '?rev=' + (LAST_REV || 0) + '&t=';
-                    const pr = await fetchT(API_DB + qs + Date.now(), { headers: { 'Accept': 'application/json' }, cache: 'no-store' }, 60000);
+                    const pr = await fetch(API_DB + qs + Date.now(), { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
                     if (pr.status === 404 || pr.status === 405 || pr.status === 501) {
                         SERVER_DB = false;
                     } else if (pr.ok) {
-                        const txt = await pr.text();
-                        let pj = null;
-                        try { pj = JSON.parse(txt); } catch (e) { pj = null; }
-                        if (pj && pj.notModified) { SERVER_DB = true; return null; }
+                        const pj = await pr.json().catch(function () { return null; });
                         if (pj && pj.db && typeof pj.db === 'object') {
                             SERVER_DB = true;
-                            if (pj.sha) LAST_SHA = pj.sha;
-                            const db = normalizeDb(pj.db);
-                            if (pj.rev != null) db.rev = Number(pj.rev);
-                            return db;
+                            LAST_SHA = pj.sha || LAST_SHA;
+                            return normalizeDb(pj.db);
                         }
-                        // رد غير مفهوم: نجرّب القراءة المباشرة من GitHub
-                        console.warn('رد غير متوقع من خدمة قاعدة البيانات، تحويل للقراءة المباشرة');
-                        SERVER_DB = false;
+                        if (pj && pj.notModified) {
+                            SERVER_DB = true;
+                            return null;
+                        }
                     }
                 } catch (e) {
-                    console.warn('قراءة الخادم فشلت:', e && e.message ? e.message : e);
+                    SERVER_DB = false;
                 }
-        }
-        const r = await fetchT(GH_API + '?ref=' + GH_BRANCH + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' }, 60000);
+            }
+            // قراءة مباشرة من raw.githubusercontent.com (يعمل بعد التحويل لـ Firebase)
+            try {
+                const rawUrl = 'https://raw.githubusercontent.com/' + GH_OWNER + '/' + GH_REPO + '/' + GH_BRANCH + '/db.json?t=' + Date.now();
+                const rr = await fetch(rawUrl, { cache: 'no-store', headers: { 'User-Agent': 'appointments-riyadh' } });
+                if (rr.ok) {
+                    const txt = await rr.text();
+                    let db = null;
+                    try { db = JSON.parse(txt); } catch (e) { db = null; }
+                    if (!db || typeof db !== 'object' || Array.isArray(db)) throw new Error('قاعدة البيانات غير صالحة');
+                    SERVER_DB = false;
+                    LAST_SHA = rr.headers.get('etag') || LAST_SHA;
+                    return normalizeDb(db);
+                }
+            } catch (e) {}
+            // fallback إلى GitHub API
+            const r = await fetch(GH_API + '?ref=' + GH_BRANCH + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' });
             if (r.status === 404) {
-                if (LAST_REV > 0 || appointments.length) throw new Error('قاعدة البيانات غير متاحة مؤقتًا (404)');
+                if (LAST_REV || appointments.length) throw new Error('قاعدة البيانات غير متاحة مؤقتًا (404) — تم تجاهل هذا التحديث');
                 LAST_SHA = null;
                 return normalizeDb({ appointments: [], users: [], departments: [], meta: {}, rev: 0 });
             }
@@ -1828,57 +1473,17 @@
             LAST_SHA = j.sha;
             let content = j.content;
             if (!content && j.git_url) {
-                const br = await fetchT(j.git_url, { headers: ghHeaders(), cache: 'no-store' }, 60000);
+                const br = await fetch(j.git_url, { headers: ghHeaders(), cache: 'no-store' });
                 if (!br.ok) throw new Error('HTTP ' + br.status);
                 const bj = await br.json();
                 content = bj.content;
-        }
-        let db = null;
+            }
+            let db = null;
             try { db = JSON.parse(b64DecodeUnicode(content || '')); } catch (e) { db = null; }
-            if (!db || typeof db !== 'object' || Array.isArray(db)) throw new Error('رد غير مكتمل من GitHub');
+            if (!db || typeof db !== 'object' || Array.isArray(db)) throw new Error('رد غير مكتمل من GitHub — تم تجاهل هذا التحديث (حماية من فقدان البيانات)');
             return normalizeDb(db);
         }
 
-        /* --------------------------------- الكتابة --------------------------------- */
-
-        function buildPatch() {
-            const upserts = [];
-            dirtyIds.forEach(function (id) {
-                const a = appointments.find(function (x) { return idKey(x.id) === idKey(id); });
-                if (a) upserts.push(stripLocal(a));
-            });
-            const body = {
-                baseSha: LAST_SHA || '',
-                baseRev: LAST_REV || 0,
-                upserts: upserts,
-                deletes: Array.from(dirtyDeletes)
-            };
-            if (usersDirty) body.users = (typeof USERS !== 'undefined' ? USERS : null);
-            if (deptsDirty) body.departments = (typeof DEPARTMENTS !== 'undefined' ? DEPARTMENTS : null);
-            if (metaDirty) body.meta = META;
-            if (typeof waDirty !== 'undefined' && waDirty) body.wa = (typeof WA !== 'undefined' ? WA : null);
-            return body;
-        }
-        async function pushPatch(body) {
-            if (SERVER_PUSH === false) return { unsupported: true };
-            try {
-                const r = await fetchT(API_DB + '?op=patch&t=' + Date.now(), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                    body: JSON.stringify(body)
-                }, 90000);
-                let j = null;
-                try { j = await r.json(); } catch (e) { j = null; }
-                if (r.status === 404 || r.status === 405 || r.status === 501) { SERVER_PUSH = false; return { unsupported: true }; }
-                if (r.status === 400 && !(j && j.code)) { SERVER_PUSH = false; return { unsupported: true }; }
-                if (r.status === 409) return { conflict: true };
-                if (!r.ok) return { error: (j && j.error) || ('HTTP ' + r.status) };
-                SERVER_PUSH = true;
-                return { ok: true, sha: j && j.sha, rev: j && j.rev };
-            } catch (e) {
-                return { error: (e && e.message) || 'network error' };
-            }
-        }
         let PUT_PUSHED = null;
 
         function markPushed(db) {
@@ -1889,19 +1494,20 @@
                 wa: JSON.stringify(db.wa || null),
                 meta: JSON.stringify(db.meta || null)
             };
-            (db.appointments || []).forEach(function (a) { PUT_PUSHED.appointments[idKey(a.id)] = JSON.stringify(stripLocal(a)); });
+            (db.appointments || []).forEach(function (a) { PUT_PUSHED.appointments[a.id] = JSON.stringify(a); });
         }
+
         async function ghPutDb(db, message) {
             const payload = JSON.stringify(db);
             markPushed(db);
 
-            if (SERVER_DB !== false && SERVER_PUSH !== false) {
+            if (SERVER_DB !== false) {
                 try {
-                    const pr = await fetchT(API_DB, {
+                    const pr = await fetch(API_DB, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify({ db: db, sha: LAST_SHA, message: message || 'تحديث بيانات' })
-                    }, 120000);
+                    });
                     if (pr.status === 409 || pr.status === 422) { const e = new Error('conflict'); e.conflict = true; throw e; }
                     if (pr.status === 404 || pr.status === 405 || pr.status === 501) {
                         SERVER_DB = false;
@@ -1912,28 +1518,25 @@
                     } else {
                         const pj = await pr.json().catch(function () { return null; });
                         SERVER_DB = true;
-                        if (pj && pj.sha) LAST_SHA = pj.sha;
-                        if (pj && pj.rev != null) LAST_REV = Number(pj.rev);
+                        LAST_SHA = (pj && pj.sha) ? pj.sha : LAST_SHA;
                         return pj || { ok: true };
                     }
                 } catch (e) {
                     if (e && e.conflict) throw e;
-                    throw e;
+                    SERVER_DB = false;
                 }
             }
 
-            if (!GH_TOKEN) throw new Error('خدمة قاعدة البيانات غير مهيأة على الخادم');
+            if (!GH_TOKEN) throw new Error('لا يمكن الحفظ مباشرةً بدون وسيط. يرجى استخدام رمز الوصول أو التأكد من وجود الخادم.');
             const body = { message: message || 'تحديث بيانات', content: b64EncodeUnicode(payload), branch: GH_BRANCH };
             if (LAST_SHA) body.sha = LAST_SHA;
-            const r = await fetchT(GH_API, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()), body: JSON.stringify(body) }, 120000);
+            const r = await fetch(GH_API, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()), body: JSON.stringify(body) });
             if (r.status === 409 || r.status === 422) { const e = new Error('conflict'); e.conflict = true; throw e; }
             if (!r.ok) { let m = 'HTTP ' + r.status; try { const ej = await r.json(); m += ' ' + (ej.message || ''); } catch (e) {} throw new Error(m); }
             const j = await r.json();
             LAST_SHA = j.content.sha;
             return j;
         }
-
-        /* ------------------------------ الحالة والعرض ------------------------------ */
 
         let appointments = [];
         let renderScheduled = false;
@@ -1943,355 +1546,250 @@
             renderPending = true;
             if (renderScheduled) return;
             renderScheduled = true;
-            const run = function () {
-                renderScheduled = false;
-                if (renderPending) {
-                    renderPending = false;
-                    try { render(); } catch (e) { console.warn('render failed', e); }
-                }
-            };
-            if (window.requestIdleCallback) requestIdleCallback(run, { timeout: 50 });
-            else setTimeout(run, 10);
+            if (window.requestIdleCallback) {
+                requestIdleCallback(function () {
+                    renderScheduled = false;
+                    if (renderPending) {
+                        renderPending = false;
+                        try { render(); } catch (e) { console.warn('render failed', e); }
+                    }
+                }, { timeout: 50 });
+            } else {
+                setTimeout(function () {
+                    renderScheduled = false;
+                    if (renderPending) {
+                        renderPending = false;
+                        try { render(); } catch (e) { console.warn('render failed', e); }
+                    }
+                }, 10);
+            }
         }
+
         function markDirtyByDiff() {
             const seen = {};
-            appointments.forEach(function (a) {
+            appointments.forEach(a => { 
                 try {
-                    const s = JSON.stringify(stripLocal(a));
-                    seen[idKey(a.id)] = true;
-                    if (LAST_SYNCED[idKey(a.id)] !== s) dirtyIds.add(a.id);
-                } catch (e) {
-                    seen[idKey(a.id)] = true;
+                    const s = JSON.stringify(a); 
+                    seen[a.id] = true; 
+                    if (LAST_SYNCED[a.id] !== s) dirtyIds.add(a.id); 
+                } catch(e) {
+                    seen[a.id] = true;
                     dirtyIds.add(a.id);
                 }
             });
-            Object.keys(LAST_SYNCED).forEach(function (k) {
-                if (!seen[k] && !dirtyDeletes.has(k)) dirtyDeletes.add(k);
-            });
-        }
-        function hasPending() {
-            return dirtyIds.size > 0 || dirtyDeletes.size > 0 || usersDirty || deptsDirty || metaDirty ||
-                (typeof waDirty !== 'undefined' && waDirty);
+            Object.keys(LAST_SYNCED).forEach(k => { if (!seen[k]) dirtyDeletes.add(Number(k)); });
         }
 
-        /* نقطة الحفظ الموحّدة لكل تعديل في التطبيق */
         function saveAppointments(list) {
             appointments = list.slice ? list.slice() : list;
             markDirtyByDiff();
             renderPending = false;
             renderScheduled = false;
-            try { render(); } catch (e) {}
-            saveLocalSoon();
+            try { render(); } catch(e){}
             scheduleSync();
-            setTimeout(function () { if (hasPending()) doSync(); }, 60);
+            try { setTimeout(function(){ if (dirtyIds.size || dirtyDeletes.size) doSync(); }, 50); } catch(e){}
         }
+
         function scheduleSync() {
             if (syncTimer) return;
-            syncTimer = setTimeout(function () { syncTimer = null; doSync(); }, 200);
+            syncTimer = setTimeout(function () { syncTimer = null; doSync(); }, 250);
         }
+
+        let retryTimer = null;
+
         function retrySync() {
             if (retryTimer) return;
-            retryTimer = setTimeout(function () {
-                retryTimer = null;
-                doSync();
-            }, retryDelay);
-            retryDelay = Math.min(retryDelay * 2, 30000);
+            retryTimer = setTimeout(function () { retryTimer = null; scheduleSync(); }, 2000);
         }
+
         async function doSync() {
+            if (!GH_TOKEN && SERVER_DB === false) return;
             if (syncing) { syncAgain = true; return; }
-            if (!hasPending()) return;
-            if (!GH_TOKEN && SERVER_DB === false) {
-                setSyncStatus('offline', 'لا يوجد اتصال بقاعدة البيانات — تم الحفظ في هذا المتصفح');
-                return;
-            }
             syncing = true;
-            setSyncStatus('saving', 'جارٍ الحفظ...');
             try {
-                let attempt = 0, done = false, conflicts = 0;
-                while (attempt < 8 && !done) {
+                let attempt = 0;
+                while (attempt < 25) {
                     attempt++;
-                    const patch = buildPatch();
-                    const sentUpserts = {};
-                    (patch.upserts || []).forEach(function (a) { sentUpserts[idKey(a.id)] = JSON.stringify(a); });
-                    const sentDeletes = patch.deletes.slice();
-                    const sentUsers = usersDirty, sentDepts = deptsDirty, sentMeta = metaDirty;
-                    const sentWa = (typeof waDirty !== 'undefined' && waDirty);
                     try {
-                        if (SERVER_PUSH !== false) {
-                            const res = await pushPatch(patch);
-                            if (res.ok) {
-                                if (res.sha) LAST_SHA = res.sha;
-                                if (res.rev != null) LAST_REV = Number(res.rev);
-                                // نظّف ما تم رفعه فعليًا فقط
-                                Object.keys(sentUpserts).forEach(function (k) {
-                                    const cur = appointments.find(function (x) { return idKey(x.id) === k; });
-                                    if (!cur || JSON.stringify(stripLocal(cur)) === sentUpserts[k]) {
-                                        dirtyIds.forEach(function (id) { if (idKey(id) === k) dirtyIds.delete(id); });
-                                        LAST_SYNCED[k] = sentUpserts[k];
-                                    }
-                                });
-                                sentDeletes.forEach(function (k) { dirtyDeletes.delete(k); });
-                                if (sentUsers) usersDirty = false;
-                                if (sentDepts) deptsDirty = false;
-                                if (sentMeta) metaDirty = false;
-                                if (sentWa) waDirty = false;
-                                done = true;
-                                retryDelay = 2500;
-                                setSyncStatus('ok', 'تم الحفظ');
-                                break;
-                            }
-                            if (res.conflict) {
-                                conflicts++;
-                                setSyncStatus('saving', 'تحديث متعارض — جارٍ الدمج...');
-                                await sleep(300 + Math.random() * 500);
-                                try {
-                                    const fresh = await ghGetDb(true);
-                                    if (fresh) applyRemote(fresh);
-                                } catch (e) {}
-                                // خدمة الخادم غير متوافقة (تعارض متكرر): الحفظ مباشرة في GitHub
-                                if (conflicts >= 3) {
-                                    console.warn('تعارض متكرر من خدمة الخادم — التحويل إلى الحفظ المباشر');
-                                    SERVER_PUSH = false;
-                                    if (!GH_TOKEN) SERVER_DB = false;
-                                }
-                                continue;
-                            }
-                            if (res.unsupported) {
-                                console.warn('خدمة الحفظ الجديدة غير متاحة — استخدام المسار القديم');
-                                SERVER_PUSH = false;
-                            } else if (res.error) {
-                                throw new Error(res.error);
-                            }
-                        }
-                        // مسار احتياطي: قراءة كامل قاعدة البيانات + كتابتها كما في النظام القديم
                         const db = await ghGetDb(true);
-                        if (!db) throw new Error('تعذّر قراءة قاعدة البيانات');
+                        if (!db) break;
                         applyLocalTo(db);
                         db.rev = (db.rev || 0) + 1;
                         await ghPutDb(db, 'تحديث بيانات المواعيد');
                         adoptDb(db);
-                        done = true;
-                        retryDelay = 2500;
-                        setSyncStatus('ok', 'تم الحفظ');
+                        pendingForce = [];
+                        break;
                     } catch (e) {
+                        if (e.conflict && attempt < 25) { await new Promise(function (res) { setTimeout(res, 250); }); continue; }
                         console.warn('sync failed', e);
+                        retrySync();
                         break;
                     }
                 }
-                if (!done && hasPending()) {
-                    setSyncStatus('error', 'تعذّر الحفظ — ستتم إعادة المحاولة تلقائيًا');
-                    retrySync();
-                }
             } finally {
                 syncing = false;
-                saveLocalSoon();
                 if (syncAgain) { syncAgain = false; scheduleSync(); }
             }
         }
+
         function applyLocalTo(db) {
             const byId = {};
-            (Array.isArray(db.appointments) ? db.appointments : []).forEach(function (a) { if (a && a.id != null) byId[idKey(a.id)] = a; });
-            dirtyIds.forEach(function (id) {
-                const local = appointments.find(function (a) { return idKey(a.id) === idKey(id); });
-                if (local) byId[idKey(id)] = stripLocal(local);
-            });
-            dirtyDeletes.forEach(function (id) { delete byId[idKey(id)]; });
+            (Array.isArray(db.appointments) ? db.appointments : []).forEach(a => { byId[a.id] = a; });
+            dirtyIds.forEach(id => { const local = appointments.find(a => a.id === id); if (local) byId[id] = local; });
+            dirtyDeletes.forEach(id => { delete byId[id]; });
+            // حماية: أي موعد موجود محليًا ولم يصل للخادم بعد يبقى ولا يُحذف
             appointments.forEach(function (a) {
-                if (a && a.id != null && !byId[idKey(a.id)] && !dirtyDeletes.has(idKey(a.id))) { byId[idKey(a.id)] = stripLocal(a); dirtyIds.add(a.id); }
+                if (a && a.id != null && !byId[a.id] && !dirtyDeletes.has(a.id)) { byId[a.id] = a; dirtyIds.add(a.id); }
             });
-            db.appointments = Object.keys(byId).map(function (k) { return byId[k]; });
+            db.appointments = Object.keys(byId).map(k => byId[k]);
             if (usersDirty) db.users = USERS;
             if (deptsDirty) db.departments = DEPARTMENTS;
-            if (typeof waDirty !== 'undefined' && waDirty) db.wa = WA;
+            if (waDirty) db.wa = WA;
             if (!db.users || !db.users.length) db.users = USERS;
             if (!db.departments || !db.departments.length) db.departments = DEPARTMENTS;
             db.meta = Object.assign({}, db.meta || {}, META);
         }
+
         function adoptDb(db) {
             const pushed = (typeof PUT_PUSHED === 'object' && PUT_PUSHED) ? PUT_PUSHED : null;
+            const usersChanged = pushed ? (pushed.users !== JSON.stringify(USERS || null)) : false;
+            const deptsChanged = pushed ? (pushed.departments !== JSON.stringify(DEPARTMENTS || null)) : false;
+            const waChanged = pushed ? (pushed.wa !== JSON.stringify(WA || null)) : false;
+            const metaChanged = pushed ? (pushed.meta !== JSON.stringify(META || null)) : false;
+
             const incoming = Array.isArray(db.appointments) ? db.appointments : [];
             if (!incoming.length && appointments.length) {
-                console.warn('تم تجاهل تحديث فارغ لحماية المواعيد الحالية');
+                console.warn('adoptDb: تجاهل تحديث فارغ من GitHub للحفاظ على المواعيد الحالية');
                 return;
             }
+
             appointments = incoming;
-            META = Object.assign({}, db.meta || {}, META);
-            if (db.users && db.users.length && !usersDirty) USERS = db.users;
-            if (db.departments && db.departments.length && !deptsDirty) DEPARTMENTS = db.departments;
-            if (paWaOk(db)) mergeWa(db.wa);
+            META = Object.assign({}, db.meta || {}, metaChanged ? (META || {}) : {});
+            if (usersChanged) { usersDirty = true; }
+            else { usersDirty = false; if (db.users && db.users.length) USERS = db.users; }
+            if (deptsChanged) { deptsDirty = true; }
+            else { deptsDirty = false; if (db.departments && db.departments.length) DEPARTMENTS = db.departments; }
+            if (waChanged) { waDirty = true; }
+            else { waDirty = false; if (db.wa && typeof db.wa === 'object') { const waBase = loadWaCfg(); WA = Object.assign({}, waBase, db.wa); if (!Array.isArray(WA.rows)) WA.rows = waBase.rows; try { localStorage.setItem('wa_cfg', JSON.stringify(WA)); } catch (e) {} } }
+            metaDirty = metaChanged;
             LAST_REV = db.rev || 0;
+
             LAST_SYNCED = {};
             if (pushed) {
                 Object.keys(pushed.appointments).forEach(function (k) { LAST_SYNCED[k] = pushed.appointments[k]; });
             } else {
-                appointments.forEach(function (a) { LAST_SYNCED[idKey(a.id)] = JSON.stringify(stripLocal(a)); });
+                appointments.forEach(function (a) { LAST_SYNCED[a.id] = JSON.stringify(a); });
             }
             dirtyIds.clear(); dirtyDeletes.clear();
             markDirtyByDiff();
+            if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) scheduleSync();
             renderDeptOptions();
             renderPending = false;
             renderScheduled = false;
-            try { render(); } catch (e) {}
-            try { if (document.getElementById('settings-overlay').style.display === 'flex') { renderUsersTable(); renderDeptsList(); } } catch (e) {}
-            saveLocalSoon();
-            if (hasPending()) scheduleSync();
+            render();
+            if (document.getElementById('settings-overlay').style.display === 'flex') { renderUsersTable(); renderDeptsList(); }
         }
-        function paWaOk(db) { return db.wa && typeof db.wa === 'object'; }
 
-        function mergeWa(remoteWa) {
-            try {
-                if (!remoteWa || typeof remoteWa !== 'object') return;
-                if (typeof waDirty !== 'undefined' && waDirty) return;
-                const base = loadWaCfg();
-                WA = Object.assign({}, base, remoteWa);
-                if (!Array.isArray(WA.rows)) WA.rows = base.rows;
-                try { localStorage.setItem('wa_cfg', JSON.stringify(WA)); } catch (e) {}
-            } catch (e) {}
-        }
-        function mergeFileLists(a, b) {
-            const out = [];
-            const seen = {};
-            function push(f) {
-                if (!f) return;
-                const k = f.path || f.url || (String(f.name) + '|' + String(f.size || (f.data ? f.data.length : 0)));
-                if (seen[k]) return;
-                seen[k] = true;
-                out.push(f);
-            }
-            (Array.isArray(a) ? a : []).forEach(push);
-            (Array.isArray(b) ? b : []).forEach(push);
-            return out;
-        }
-        function putRecord(map, a) {
-            if (!a || a.id == null) return;
-            const k = idKey(a.id);
-            if (!map[k]) { map[k] = a; return; }
-            const lt = Date.parse(a.updatedAt || a.createdAt || 0) || 0;
-            const rt = Date.parse(map[k].updatedAt || map[k].createdAt || 0) || 0;
-            let win = map[k];
-            if (lt && rt && lt > rt) win = a;
-            else if (lt && !rt) win = a;
-            else if (lt === rt) {
-                const la = (a.files || []).length, lr = (map[k].files || []).length;
-                if (la > lr) win = a;
-                else if (la === lr && JSON.stringify(a).length > JSON.stringify(map[k]).length) win = a;
-        }
-        const other = (win === a) ? map[k] : a;
-            const merged = Object.assign({}, other, win);
-            merged.files = mergeFileLists(other.files, win.files);
-            map[k] = merged;
-        }
-        async function loadFromDb(db) {
-            const incoming = db.appointments || [];
-            USERS = (db.users && db.users.length) ? db.users : JSON.parse(JSON.stringify(DEFAULT_USERS));
-            DEPARTMENTS = (db.departments && db.departments.length) ? db.departments : DEFAULT_DEPTS.slice();
-            META = db.meta || {};
-            if (paWaOk(db)) mergeWa(db.wa);
-            LAST_REV = db.rev || 0;
+        let polling = false;
 
-            const map = {};
-            // ما هو موجود في قاعدة البيانات هو المرجع
-            incoming.forEach(function (a) { putRecord(map, stripLocal(a)); });
-            const incomingIds = {};
-            incoming.forEach(function (a) { if (a && a.id != null) incomingIds[idKey(a.id)] = true; });
-
-            // ثم ما كان محفوظًا محليًا ولم يصل للخادم (لم يُفقد)
-            const localPending = [];
-            appointments.forEach(function (a) {
-                if (!a || a.id == null) return;
-                if (!incomingIds[idKey(a.id)]) { localPending.push(a); putRecord(map, stripLocal(a)); }
-            });
-
-            // نسخ احتياطية قديمة في localStorage (شبكة أمان إضافية للإصدارات السابقة)
-            try {
-                ['appointments_backup', 'appointments_force', 'appointments_all'].forEach(function (k) {
-                    const s = localStorage.getItem(k);
-                    if (!s) return;
-                    try {
-                        const j = JSON.parse(s);
-                        const arr = Array.isArray(j) ? j : (j && Array.isArray(j.appointments) ? j.appointments : null);
-                        if (!arr) return;
-                        arr.forEach(function (a) {
-                            if (!a || a.id == null) return;
-                            if (!incomingIds[idKey(a.id)]) { localPending.push(a); putRecord(map, stripLocal(a)); }
-                        });
-                    } catch (e) {}
-                });
-            } catch (e) {}
-
-            appointments = Object.keys(map).map(function (k) { return map[k]; });
-            db.appointments = appointments;
-
-            LAST_SYNCED = {};
-            appointments.forEach(function (a) { LAST_SYNCED[idKey(a.id)] = JSON.stringify(stripLocal(a)); });
-            dirtyIds.clear(); dirtyDeletes.clear();
-            localPending.forEach(function (a) { dirtyIds.add(a.id); });
-            appointments.forEach(function (a) { if (!incomingIds[idKey(a.id)]) dirtyIds.add(a.id); });
-
-            renderDeptOptions();
-            if (!currentUser) {
-                try {
-                    const savedUser = sessionStorage.getItem('appointments_user');
-                    if (savedUser) {
-                        const su = JSON.parse(savedUser);
-                        const f = USERS.find(function (x) { return x.user === su.user; });
-                        if (f) { currentUser = f; document.getElementById('login-overlay').style.display = 'none'; applyUser(); }
-                    }
-                } catch (e) {}
-            }
-            renderPending = false;
-            renderScheduled = false;
-            try { render(); } catch (e) {}
-            saveLocalSoon();
-
-            if (dirtyIds.size) {
-                setSyncStatus('saving', 'جارٍ رفع مواعيد محفوظة محليًا (' + dirtyIds.size + ')...');
-                scheduleSync();
-            }
-        }
-        function applyRemote(db) {
-            const incoming = db.appointments || [];
-            const map = {};
-            incoming.forEach(function (a) { putRecord(map, stripLocal(a)); });
-            appointments.forEach(function (a) {
-                const k = idKey(a && a.id);
-                if (dirtyDeletes.has(k)) { delete map[k]; return; }
-                putRecord(map, stripLocal(a));
-            });
-            appointments = Object.keys(map).map(function (k) { return map[k]; });
-            META = Object.assign({}, db.meta || {}, META);
-            if (db.users && db.users.length && !usersDirty) USERS = db.users;
-            if (db.departments && db.departments.length && !deptsDirty) DEPARTMENTS = db.departments;
-            if (paWaOk(db)) mergeWa(db.wa);
-            LAST_REV = db.rev || 0;
-            LAST_SYNCED = {};
-            appointments.forEach(function (a) { LAST_SYNCED[idKey(a.id)] = JSON.stringify(stripLocal(a)); });
-            appointments.forEach(function (a) { if (!incoming.some(function (x) { return idKey(x.id) === idKey(a.id); })) dirtyIds.add(a.id); });
-            markDirtyByDiff();
-            renderDeptOptions();
-            renderPending = false;
-            renderScheduled = false;
-            try { render(); } catch (e) {}
-            saveLocalSoon();
-            if (hasPending()) scheduleSync();
-        }
         async function poll() {
             if (SERVER_DB === false && !GH_TOKEN) return;
             if (document.hidden || syncing || polling) return;
-            if (hasPending()) return;
+            if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) return;
             polling = true;
             try {
                 const db = await ghGetDb();
                 if (!db) return;
-                if (Number(db.rev || 0) === Number(LAST_REV || 0)) return;
-                if (hasPending()) return;
+                if ((db.rev || 0) === LAST_REV) return;
+                if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) return;
                 applyRemote(db);
             } catch (e) {
-                console.warn('poll skipped:', e && e.message ? e.message : e);
+                console.warn('poll skipped:', e.message || e);
             } finally {
                 polling = false;
             }
         }
+
+        function applyRemote(db) {
+            const incoming = db.appointments || [];
+            const map = {};
+
+            function putAll(arr) {
+                if (!Array.isArray(arr)) return;
+                arr.forEach(a => {
+                    if (!a || a.id == null) return;
+                    const key = String(a.id);
+                    if (!map[key]) {
+                        map[key] = a;
+                    } else {
+                        if (dirtyIds.has(a.id)) {
+                            map[key] = a;
+                            return;
+                        }
+                        const lt = a.updatedAt || a.createdAt || 0;
+                        const rt = map[key].updatedAt || map[key].createdAt || 0;
+                        if (lt && rt && lt > rt) map[key] = a;
+                        else if (lt && !rt) map[key] = a;
+                    }
+                });
+            }
+
+            putAll(appointments);
+            putAll(incoming);
+            try {
+                const keys = ['appointments_backup','appointments_force','appointments_all'];
+                keys.forEach(k => {
+                    const s = localStorage.getItem(k);
+                    if (!s) return;
+                    try {
+                        const j = JSON.parse(s);
+                        if (Array.isArray(j)) putAll(j);
+                        else if (j && Array.isArray(j.appointments)) putAll(j.appointments);
+                    } catch(e){}
+                });
+            } catch(e){}
+
+            let merged = Object.keys(map).map(k => map[k]);
+            if (merged.length === 0) {
+                markDirtyByDiff();
+                scheduleSync();
+                return;
+            }
+
+            if (merged.length < appointments.length) {
+                putAll(appointments);
+                merged = Object.keys(map).map(k => map[k]);
+            }
+
+            if (merged.length < incoming.length && appointments.length >= incoming.length) {
+                putAll(appointments);
+                merged = Object.keys(map).map(k => map[k]);
+            }
+
+            appointments = merged;
+            META = db.meta || {};
+            LAST_REV = db.rev || 0;
+            LAST_SYNCED = {};
+            appointments.forEach(a => { try { LAST_SYNCED[a.id] = JSON.stringify(a); } catch(e) {} });
+            appointments.forEach(a => { if (incoming.find(x=>x.id===a.id)) return; dirtyIds.add(a.id); });
+            markDirtyByDiff();
+            const settingsOpen = document.getElementById('settings-overlay').style.display === 'flex';
+            if (!settingsOpen) {
+                if (db.users && db.users.length && !usersDirty) USERS = db.users;
+                if (db.departments && db.departments.length && !deptsDirty) DEPARTMENTS = db.departments;
+                renderDeptOptions();
+            }
+            try { localStorage.setItem('appointments_backup', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
+            try { localStorage.setItem('appointments_all', JSON.stringify(appointments)); } catch(e){}
+            renderPending = false;
+            renderScheduled = false;
+            render();
+            if (dirtyIds.size || merged.length !== (incoming||[]).length) {
+                scheduleSync();
+                try { setTimeout(function(){ doSync(); }, 30); } catch(e){}
+            }
+        }
+
         function setGhStatus(msg, isErr) {
             const el = document.getElementById('gh-status');
             if (el) { el.textContent = msg; el.style.color = isErr ? '#c0392b' : '#1e7e34'; }
@@ -2302,6 +1800,67 @@
             if (c) c.style.display = on ? 'block' : 'none';
             if (lf) lf.style.display = on ? 'none' : 'block';
         }
+
+        async function loadFromDb(db) {
+            const incoming = db.appointments || [];
+            const map = {};
+            function putAll(arr) {
+                if (!Array.isArray(arr)) return;
+                arr.forEach(a => {
+                    if (!a || a.id == null) return;
+                    const key = String(a.id);
+                    if (!map[key]) map[key] = a;
+                    else {
+                        const lt = a.updatedAt || a.createdAt || 0;
+                        const rt = map[key].updatedAt || map[key].createdAt || 0;
+                        if (lt && rt && lt > rt) map[key] = a;
+                        else if (lt && !rt) map[key] = a;
+                    }
+                });
+            }
+            putAll(incoming);
+            try {
+                const keys = ['appointments_backup','appointments_force','appointments_all'];
+                keys.forEach(k => {
+                    const s = localStorage.getItem(k);
+                    if (!s) return;
+                    try {
+                        const j = JSON.parse(s);
+                        if (Array.isArray(j)) putAll(j);
+                        else if (j && Array.isArray(j.appointments)) putAll(j.appointments);
+                    } catch(e){}
+                });
+            } catch(e){}
+            let merged = Object.keys(map).map(k => map[k]);
+            if (merged.length === 0) merged = incoming;
+            db.appointments = merged;
+            appointments = merged;
+            USERS = (db.users && db.users.length) ? db.users : JSON.parse(JSON.stringify(DEFAULT_USERS));
+            DEPARTMENTS = (db.departments && db.departments.length) ? db.departments : DEFAULT_DEPTS.slice();
+            META = db.meta || {};
+            LAST_REV = db.rev || 0;
+            LAST_SYNCED = {};
+            appointments.forEach(a => { try { LAST_SYNCED[a.id] = JSON.stringify(a); } catch(e){} });
+            dirtyIds.clear(); dirtyDeletes.clear();
+            appointments.forEach(a => { if (!incoming.find(x=>x.id===a.id)) dirtyIds.add(a.id); });
+            markDirtyByDiff();
+            renderDeptOptions();
+            if (!currentUser) {
+                const savedUser = sessionStorage.getItem('appointments_user');
+                if (savedUser) {
+                    try {
+                        const su = JSON.parse(savedUser);
+                        const f = USERS.find(x => x.user === su.user);
+                        if (f) { currentUser = f; document.getElementById('login-overlay').style.display = 'none'; applyUser(); }
+                    } catch (e) {}
+                }
+            }
+            try { localStorage.setItem('appointments_backup', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
+            try { localStorage.setItem('appointments_all', JSON.stringify(appointments)); } catch(e){}
+            render();
+            if (dirtyIds.size) { scheduleSync(); try { setTimeout(function(){ doSync(); }, 40); } catch(e){} }
+        }
+
         async function connectGh() {
             const tok = document.getElementById('gh-token-input').value.trim();
             if (!tok) { setGhStatus('الصق رمز الوصول أولاً', true); return; }
@@ -2310,23 +1869,24 @@
             GH_TOKEN = tok;
             try {
                 const db = await ghGetDb(true);
-                try { localStorage.setItem('gh_token', tok); } catch (e) {}
+                localStorage.setItem('gh_token', tok);
                 await loadFromDb(db);
                 showConnect(false);
                 startPolling();
-                setSyncStatus('ok', 'تم الربط');
             } catch (e) {
                 GH_TOKEN = prev;
                 setGhStatus('تعذّر الربط: ' + e.message, true);
             }
         }
+
         function startPolling() {
             if (pollTimer) return;
-            const ms = (SERVER_DB === false && !GH_TOKEN) ? 120000 : 15000;
+            const ms = (SERVER_DB === false && !GH_TOKEN) ? 120000 : 7000;
             pollTimer = setInterval(poll, ms);
             document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
             window.addEventListener('focus', poll);
         }
+
         async function bootstrap() {
             try {
                 const hash = location.hash || '';
@@ -2334,181 +1894,51 @@
                 const m = hash.match(/(?:^#|&)t=([^&]+)/) || q.match(/[?&]t=([^&]+)/);
                 if (m && m[1]) {
                     const t = decodeURIComponent(m[1]);
-                    if (t) { GH_TOKEN = t; try { localStorage.setItem('gh_token', t); } catch (e) {} }
+                    if (t) { GH_TOKEN = t; localStorage.setItem('gh_token', t); }
                     history.replaceState(null, '', location.pathname);
                 }
             } catch (e) {}
-            try {
-                const brandLogo = document.querySelector('.brand-logo');
-                if (brandLogo) {
-                    const lg = document.getElementById('login-logo');
-                    if (lg) lg.src = brandLogo.src;
-                }
-            } catch (e) {}
-
+            const brandLogo = document.querySelector('.brand-logo');
+            if (brandLogo) {
+                const lg = document.getElementById('login-logo');
+                if (lg) lg.src = brandLogo.src;
+            }
+            // always try server first
             showConnect(false);
             setGhStatus('جارٍ التحميل...', false);
-            setSyncStatus('loading', 'جارٍ تحميل البيانات...');
-
-            // 1) استرجاع النسخة المحلية فورًا (حتى لو تعطّل الاتصال)
-            const snap = await loadLocalSnapshot();
-            if (snap && Array.isArray(snap.appointments) && snap.appointments.length) {
-                appointments = snap.appointments.map(function (a) { return a; });
-                if (snap.meta && typeof snap.meta === 'object') META = snap.meta;
-                if (Array.isArray(snap.users) && snap.users.length) USERS = snap.users;
-                if (Array.isArray(snap.departments) && snap.departments.length) DEPARTMENTS = snap.departments;
-                LAST_REV = snap.rev || 0;
-                LAST_SHA = snap.sha || null;
-                LAST_SYNCED = {};
-                appointments.forEach(function (a) { LAST_SYNCED[idKey(a.id)] = JSON.stringify(stripLocal(a)); });
-                (snap.pendingIds || []).forEach(function (id) { dirtyIds.add(id); });
-                (snap.pendingDeletes || []).forEach(function (id) { dirtyDeletes.add(id); });
-                try { renderDeptOptions(); render(); } catch (e) {}
-                setSyncStatus('loading', 'تم استرجاع نسخة محلية — جارٍ التحديث من الخادم...');
-            }
-
-            // 2) التحديث من قاعدة البيانات
-            let lastErr = null;
-            for (let i = 0; i < 3; i++) {
-                try {
-                    const db = await ghGetDb(true);
-                    if (!db) throw new Error('لم يتم استلام بيانات قاعدة البيانات');
-                    await loadFromDb(db);
-                    startPolling();
-                    if (!hasPending()) setSyncStatus('ok', 'متصل — ' + new Date().toLocaleTimeString('ar-SA'));
-                    return;
-                } catch (e) {
-                    lastErr = e;
-                    await sleep(1200 * (i + 1));
-                }
-            }
-
-            if (appointments.length) {
-                setSyncStatus('offline', 'لا يوجد اتصال — تعرض نسخة محفوظة في هذا المتصفح');
+            try {
+                const db = await ghGetDb(true);
+                if (!db) throw new Error('لم يتم استلام بيانات قاعدة البيانات');
+                await loadFromDb(db);
                 startPolling();
                 return;
-            }
-            if (SERVER_DB === false && !GH_TOKEN) {
-                showConnect(true);
-                setGhStatus('خدمة قاعدة البيانات غير مهيأة على الخادم — تواصل مع مدير النظام.', true);
-            } else if (GH_TOKEN) {
-                showConnect(true);
-                setGhStatus('تعذّر الاتصال بقاعدة البيانات: ' + (lastErr ? lastErr.message : ''), true);
-            } else {
-                showConnect(false);
-                setGhStatus('جارٍ إعادة المحاولة...', false);
-                setTimeout(bootstrap, 2500);
+            } catch (e) {
+                // if server is configured but failed, don't show token screen
+                if (SERVER_DB !== false) {
+                    // retry once
+                    try {
+                        await new Promise(r=>setTimeout(r,1000));
+                        const db2 = await ghGetDb(true);
+                        if (db2) { await loadFromDb(db2); startPolling(); return; }
+                    } catch(e2){}
+                }
+                if (SERVER_DB === false && !GH_TOKEN) {
+                    showConnect(true);
+                    setGhStatus('خدمة قاعدة البيانات غير مهيأة على الخادم — تواصل مع مدير النظام.', true);
+                } else if (GH_TOKEN) {
+                    showConnect(true);
+                    setGhStatus('تعذّر الاتصال بقاعدة البيانات: ' + e.message, true);
+                } else {
+                    // try again silently, don't block UI
+                    showConnect(false);
+                    setGhStatus('جارٍ إعادة المحاولة...', false);
+                    setTimeout(function(){ bootstrap(); }, 2000);
+                }
             }
         }
+
         function loadAppointments() { return appointments; }
 
-        /* --------------------------- المرفقات: رفع وقراءة --------------------------- */
-
-        function fileRawUrl(f) {
-            if (!f) return '';
-            if (f.path) return FILE_RAW_BASE + f.path.split('/').map(encodeURIComponent).join('/');
-            if (f.url) return f.url;
-            return '';
-        }
-        function fileProxyUrl(f) {
-            if (f && f.path) return API_DB + '?op=file&p=' + encodeURIComponent(f.path);
-            return '';
-        }
-        function blobToDataUrl(blob) {
-            return new Promise(function (res, rej) {
-                try {
-                    const fr = new FileReader();
-                    fr.onload = function () { res(fr.result); };
-                    fr.onerror = function () { rej(new Error('read error')); };
-                    fr.readAsDataURL(blob);
-                } catch (e) { rej(e); }
-            });
-        }
-
-        /* يعيد data URL للمرفق أيًّا كان مصدره (مضمّن قديم أو ملف على GitHub) */
-        async function getFileDataUrl(f) {
-            if (!f) return '';
-            if (f.data) return f.data;
-            if (f._dataUrl) return f._dataUrl;
-            const cacheKey = 'file:' + (f.path || f.url || f.name);
-            const urls = [fileProxyUrl(f), fileRawUrl(f)].filter(Boolean);
-            for (let i = 0; i < urls.length; i++) {
-                try {
-                    const r = await fetchT(urls[i], { cache: 'force-cache' }, 30000);
-                    if (!r.ok) continue;
-                    const b = await r.blob();
-                    const d = await blobToDataUrl(b);
-                    f._dataUrl = d;
-                    try { await idbSet(cacheKey, d); } catch (e) {}
-                    return d;
-                } catch (e) {}
-            }
-            try {
-                const cached = await idbGet(cacheKey);
-                if (cached) return cached;
-            } catch (e) {}
-            return '';
-        }
-
-        function uploadFileName(file) {
-            const m = String(file.name || '').match(/\.([A-Za-z0-9]{1,6})$/);
-            const ext = m ? m[1].toLowerCase() : 'bin';
-            return 'attachments/' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
-        }
-
-        /* رفع ملف إلى مجلد attachments في المستودع */
-        async function uploadAttachment(file) {
-            // 1) عبر خدمة الخادم (الطريقة الأساسية والآمنة)
-            if (SERVER_PUSH !== false) {
-                try {
-                    const fd = new FormData();
-                    fd.append('file', file, file.name || 'file');
-                    const r = await fetchT(API_DB + '?op=file&t=' + Date.now(), { method: 'POST', body: fd }, 120000);
-                    let j = null;
-                    try { j = await r.json(); } catch (e) { j = null; }
-                    if (r.ok && j && j.path) return j;
-                    if (r.status === 404 || r.status === 405 || r.status === 501) SERVER_PUSH = false;
-                    console.warn('رفع المرفق عبر الخادم فشل:', (j && j.error) || ('HTTP ' + r.status));
-                } catch (e) {
-                    console.warn('رفع المرفق عبر الخادم فشل:', e && e.message ? e.message : e);
-                }
-            }
-            // 2) رفع مباشر إلى GitHub من المتصفح (عند تعذّر خدمة الخادم)
-            if (!GH_TOKEN) return null;
-            try {
-                const dataUrl = await readAsDataURL(file);
-                const b64 = String(dataUrl).split(',')[1] || '';
-                const path = uploadFileName(file);
-                const r = await fetchT(GH_API.replace(GH_PATH, path), {
-                    method: 'PUT',
-                    headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()),
-                    body: JSON.stringify({ message: 'مرفق: ' + (file.name || path), content: b64, branch: GH_BRANCH })
-                }, 120000);
-                let j = null;
-                try { j = await r.json(); } catch (e) { j = null; }
-                if (r.ok && j && j.content) {
-                    return {
-                        path: path,
-                        sha: j.content.sha,
-                        size: file.size,
-                        type: file.type || '',
-                        url: FILE_RAW_BASE + encodeURI(path)
-                    };
-                }
-                console.warn('رفع المرفق المباشر فشل:', (j && j.message) || ('HTTP ' + r.status));
-            } catch (e) {
-                console.warn('رفع المرفق المباشر فشل:', e && e.message ? e.message : e);
-            }
-            return null;
-        }
-        function readAsDataURL(file) {
-            return new Promise(function (res, rej) {
-                const fr = new FileReader();
-                fr.onload = function () { res(fr.result); };
-                fr.onerror = function () { rej(new Error('read error')); };
-                fr.readAsDataURL(file);
-            });
-        }
         const DEFAULT_USERS = [
             { user: 'M1', pass: '123', name: 'المدير العام', role: 'director' },
             { user: 'M2', pass: '123', name: 'مكتب المدير العام', role: 'admin' },
@@ -2525,6 +1955,7 @@
             } catch (e) {}
             return JSON.parse(JSON.stringify(DEFAULT_USERS));
         }
+
         function loadDepts() {
             try {
                 const raw = localStorage.getItem('app_departments');
@@ -2532,6 +1963,7 @@
             } catch (e) {}
             return DEFAULT_DEPTS.slice();
         }
+
         let USERS = loadUsers();
         let DEPARTMENTS = loadDepts();
 
@@ -2554,6 +1986,7 @@
             }
             return appointments;
         }
+
         function isDone(a) {
             const role = currentUser ? currentUser.role : '';
             if (role === 'dept') return !!a.completed || !!a.signed;
@@ -2561,6 +1994,7 @@
             if (role === 'admin') return !!a.status;
             return !!(a.signed || a.status);
         }
+
         function scoped() {
             let list = baseScoped();
             const role = currentUser ? currentUser.role : '';
@@ -2591,6 +2025,7 @@
             }
             return list.filter(a => !(a.completed || a.signed));
         }
+
         function switchTab(tab) {
             currentTab = tab;
             document.getElementById('tab-active').classList.toggle('active', tab === 'active');
@@ -2607,13 +2042,14 @@
             resetForm();
             render();
         }
+
         function doLogin() {
-            if (!GH_TOKEN && SERVER_DB === false) {
-                document.getElementById('login-error').textContent = 'قاعدة البيانات غير متصلة — تحقق من الشبكة أو تواصل مع مدير النظام';
+            if (!GH_TOKEN) {
+                document.getElementById('login-error').textContent = 'اربط النظام بـ GitHub أولاً';
                 showConnect(true);
                 return;
             }
-        const u = document.getElementById('login-user').value.trim();
+            const u = document.getElementById('login-user').value.trim();
             const p = document.getElementById('login-pass').value.trim();
             const found = USERS.find(x => x.user === u && x.pass === p);
             if (!found) {
@@ -2627,10 +2063,12 @@
             applyUser();
             render();
         }
+
         function doLogout() {
             sessionStorage.removeItem('appointments_user');
             location.reload();
         }
+
         function applyUser() {
             document.getElementById('user-box').style.display = 'flex';
             document.getElementById('user-name').textContent = currentUser.name;
@@ -2655,6 +2093,7 @@
             if (grid) grid.classList.toggle('no-form', !showForm);
             adminDeptFilter = null;
         }
+
         function openSettings() {
             if (!currentUser || currentUser.role !== 'admin') return;
             renderUsersTable();
@@ -2662,9 +2101,11 @@
             switchSettingsTab('users');
             document.getElementById('settings-overlay').style.display = 'flex';
         }
+
         function closeSettings() {
             document.getElementById('settings-overlay').style.display = 'none';
         }
+
         function switchSettingsTab(tab) {
             document.getElementById('set-tab-users').classList.toggle('active', tab === 'users');
             document.getElementById('set-tab-depts').classList.toggle('active', tab === 'depts');
@@ -2677,16 +2118,19 @@
             if (tab === 'alerts') loadEmailCfgIntoForm();
             if (tab === 'wa') loadWaIntoForm();
         }
+
         function deptOptionsHtml(selected) {
             return DEPARTMENTS.map(d => {
                 const esc = escapeHtml(d);
                 return '<option value="' + esc + '"' + (d === selected ? ' selected' : '') + '>' + esc + '</option>';
             }).join('');
         }
+
         function roleOptionsHtml(selected) {
             const roles = [['admin', 'مكتب المدير العام'], ['director', 'المدير العام'], ['dept', 'إدارة مختصة']];
             return roles.map(r => '<option value="' + r[0] + '"' + (r[0] === selected ? ' selected' : '') + '>' + r[1] + '</option>').join('');
         }
+
         function userRowHtml(u, idx) {
             const isDept = u.role === 'dept';
             return '<tr>' +
@@ -2698,19 +2142,23 @@
                 '<td><button type="button" class="btn-ghost" onclick="removeUserRow(this)">🗑️</button></td>' +
                 '</tr>';
         }
+
         function renderUsersTable() {
             document.getElementById('users-tbody').innerHTML = USERS.map(userRowHtml).join('');
         }
+
         function addUserRow() {
             const tbody = document.getElementById('users-tbody');
             const tr = document.createElement('tr');
             tr.innerHTML = userRowHtml({ user: '', pass: '123', name: '', role: 'dept', dept: DEPARTMENTS[0] || '' });
             tbody.appendChild(tr);
         }
+
         function removeUserRow(btn) {
             const tr = btn.closest('tr');
             if (tr) tr.remove();
         }
+
         function onUserRoleChange(sel) {
             const tr = sel.closest('tr');
             const deptSel = tr.querySelector('[data-f="dept"]');
@@ -2718,6 +2166,7 @@
             deptSel.disabled = !isDept;
             if (isDept && !deptSel.value && DEPARTMENTS.length) deptSel.value = DEPARTMENTS[0];
         }
+
         function saveSettings() {
             const rows = document.querySelectorAll('#users-tbody tr');
             const users = [];
@@ -2746,6 +2195,7 @@
             alert('تم حفظ الإعدادات');
             closeSettings();
         }
+
         function renderDeptsList() {
             const ul = document.getElementById('depts-list');
             ul.innerHTML = DEPARTMENTS.map((d, i) =>
@@ -2753,6 +2203,7 @@
                 '<button type="button" class="btn-ghost" onclick="removeDept(' + i + ')">🗑️</button></li>'
             ).join('');
         }
+
         function renderDeptOptions() {
             const sel = document.getElementById('department');
             if (!sel) return;
@@ -2766,6 +2217,7 @@
             });
             if (cur && DEPARTMENTS.indexOf(cur) !== -1) sel.value = cur;
         }
+
         function addDept() {
             const inp = document.getElementById('new-dept');
             const name = inp.value.trim();
@@ -2779,6 +2231,7 @@
             renderDeptsList();
             renderDeptOptions();
         }
+
         function removeDept(i) {
             const name = DEPARTMENTS[i];
             if (!confirm('حذف الإدارة: ' + name + '؟')) return;
@@ -2789,6 +2242,7 @@
             renderDeptsList();
             renderDeptOptions();
         }
+
         function openStatement(id) {
             const a = appointments.find(x => x.id === id);
             if (!a) return;
@@ -2802,21 +2256,24 @@
             const sendBtn = document.getElementById('st-send-btn');
             if (sendBtn) {
                 sendBtn.style.display = (!locked && currentUser && currentUser.role === 'dept') ? 'inline-block' : 'none';
-        }
-        const saveBtn = document.getElementById('st-save-btn');
+            }
+            const saveBtn = document.getElementById('st-save-btn');
             if (saveBtn) {
                 saveBtn.style.display = locked ? 'none' : '';
-        }
-        const lockNote = document.getElementById('st-locked-note');
+            }
+            const lockNote = document.getElementById('st-locked-note');
             if (lockNote) {
                 lockNote.style.display = locked ? 'block' : 'none';
             }
             document.getElementById('statement-overlay').style.display = 'flex';
         }
+
         function closeStatement() {
             document.getElementById('statement-overlay').style.display = 'none';
             stEditingId = null;
         }
+
+
         function saveStatement(send = true) {
             if (stEditingId == null) return;
             const idx = appointments.findIndex(x => x.id === stEditingId);
@@ -2826,8 +2283,8 @@
                     alert('لا يمكن تعديل الإفادة بعد توقيع المدير العام. يمكن للمدير العام فقط التعديل أو إعادة تحويل الموعد للإدارة.');
                     closeStatement();
                     return;
-        }
-        const txt = document.getElementById('st-text').value.trim();
+                }
+                const txt = document.getElementById('st-text').value.trim();
                 appointments[idx].statement = txt;
                 appointments[idx].statementBy = currentUser ? currentUser.name : '';
                 appointments[idx].statementDate = new Date().toISOString();
@@ -2849,6 +2306,7 @@
             closeStatement();
             render();
         }
+
         let opEditingId = null;
 
         function openOpinion(id) {
@@ -2858,10 +2316,12 @@
             document.getElementById('op-text').value = a.directorOpinion || '';
             document.getElementById('opinion-overlay').style.display = 'flex';
         }
+
         function closeOpinion() {
             document.getElementById('opinion-overlay').style.display = 'none';
             opEditingId = null;
         }
+
         let threadEditingId = null;
 
         function openThread(id) {
@@ -2896,10 +2356,12 @@
             }
             document.getElementById('thread-overlay').style.display = 'flex';
         }
+
         function closeThread() {
             document.getElementById('thread-overlay').style.display = 'none';
             threadEditingId = null;
         }
+
         function sendThread() {
             if (threadEditingId == null) return;
             const txt = document.getElementById('th-text').value.trim();
@@ -2938,6 +2400,7 @@
                 ? 'تم إرسال الطلب للمكتب مع ملاحظتك — الموعد تحت الإجراء'
                 : 'تم إرسال الإيضاح وإعادة الطلب للإدارة — تحت الإجراء');
         }
+
         function saveOpinion() {
             if (opEditingId == null) return;
             const idx = appointments.findIndex(x => x.id === opEditingId);
@@ -2950,11 +2413,13 @@
             closeOpinion();
             render();
         }
+
         let filesEditingId = null;
 
         function canEditFiles() {
             return currentUser && (currentUser.role === 'admin' || currentUser.role === 'dept');
         }
+
         function openFiles(id) {
             const a = appointments.find(x => x.id === id);
             if (!a) return;
@@ -2964,37 +2429,32 @@
             renderFilesList(a);
             document.getElementById('files-overlay').style.display = 'flex';
         }
+
         function closeFiles() {
             document.getElementById('files-overlay').style.display = 'none';
             filesEditingId = null;
         }
-        function fmtSize(n) {
-            if (!n && n !== 0) return '';
-            if (n < 1024) return n + ' بايت';
-            if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' ك.ب';
-            return (n / 1048576).toFixed(1) + ' م.ب';
-        }
-        function renderFilesList(a, note) {
+
+        function renderFilesList(a) {
             const list = document.getElementById('files-list');
             const files = a.files || [];
-            const noteHtml = note ? '<div class="files-empty" style="color:#b45309;font-weight:700">' + escapeHtml(note) + '</div>' : '';
             if (files.length === 0) {
-                list.innerHTML = noteHtml + '<div class="files-empty">لا توجد مرفقات</div>';
+                list.innerHTML = '<div class="files-empty">لا توجد مرفقات</div>';
                 return;
-        }
-        const editable = canEditFiles();
-            list.innerHTML = noteHtml + files.map((f, i) => `
+            }
+            const editable = canEditFiles();
+            list.innerHTML = files.map((f, i) => `
                 <div class="file-row">
-                    <span class="file-name">📄 ${escapeHtml(f.name)}${f.size ? ' <span style="color:#888;font-size:11px">(' + fmtSize(f.size) + ')</span>' : ''}${(f.path || f.url) ? ' <span title="محفوظ على الخادم" style="color:#15803d">☁️</span>' : ''}</span>
+                    <span class="file-name">📄 ${escapeHtml(f.name)}</span>
                     <span class="file-actions">
                         <button class="row-btn" title="معاينة" onclick="previewFile(${i})">👁️</button>
                         <button class="row-btn" title="طباعة" onclick="printFile(${i})">🖨️</button>
-                        <button class="row-btn" title="تنزيل" onclick="downloadFile(${i})">⬇️</button>
                         ${editable ? `<button class="row-btn" title="حذف" onclick="removeFile(${i})">🗑️</button>` : ''}
                     </span>
                 </div>
             `).join('');
         }
+
         function dataUrlToBlob(dataUrl) {
             const parts = String(dataUrl).split(',');
             const mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
@@ -3003,109 +2463,84 @@
             for (let k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
             return new Blob([arr], { type: mime });
         }
-        async function previewFile(i) {
+
+        function previewFile(i) {
             const a = appointments.find(x => x.id === filesEditingId);
             if (!a || !a.files || !a.files[i]) return;
             const f = a.files[i];
-            const win = window.open('', '_blank');
             try {
-                const dataUrl = await getFileDataUrl(f);
-                if (!dataUrl) { if (win) win.close(); alert('تعذّر تحميل الملف. تحقق من الاتصال بالإنترنت ثم أعد المحاولة.'); return; }
-                const blob = dataUrlToBlob(dataUrl);
+                const blob = dataUrlToBlob(f.data);
                 const url = URL.createObjectURL(blob);
-                if (win) win.location.href = url; else window.open(url, '_blank');
+                const w = window.open(url, '_blank');
+                if (!w) alert('يرجى السماح بالنوافذ المنبثقة للمعاينة');
                 setTimeout(() => URL.revokeObjectURL(url), 60000);
             } catch (e) {
-                if (win) win.close();
                 alert('تعذّر معاينة هذا الملف.');
             }
         }
-        async function downloadFile(i) {
+
+        function printFile(i) {
             const a = appointments.find(x => x.id === filesEditingId);
             if (!a || !a.files || !a.files[i]) return;
             const f = a.files[i];
-            try {
-                const dataUrl = await getFileDataUrl(f);
-                if (!dataUrl) { alert('تعذّر تحميل الملف. تحقق من الاتصال بالإنترنت.'); return; }
-                const link = document.createElement('a');
-                link.href = dataUrl;
-                link.download = f.name || 'attachment';
-                document.body.appendChild(link);
-                link.click();
-                setTimeout(function () { document.body.removeChild(link); }, 2000);
-            } catch (e) { alert('تعذّر تنزيل الملف.'); }
+            if ((f.type || '').startsWith('image/')) {
+                printImage(f);
+            } else {
+                printGeneric(f);
+            }
         }
-        async function printFile(i) {
-            const a = appointments.find(x => x.id === filesEditingId);
-            if (!a || !a.files || !a.files[i]) return;
-            const f = a.files[i];
+
+        function printImage(f) {
+            const blob = dataUrlToBlob(f.data);
+            const url = URL.createObjectURL(blob);
             const win = window.open('', '_blank');
             if (!win) { alert('يرجى السماح بالنوافذ المنبثقة للمعاينة والطباعة'); return; }
-            const dataUrl = await getFileDataUrl(f);
-            if (!dataUrl) { win.close(); alert('تعذّر تحميل الملف للطباعة. تحقق من الاتصال بالإنترنت.'); return; }
-            if (String(f.type || '').startsWith('image/')) printImage(Object.assign({}, f, { data: dataUrl }), win);
-            else printGeneric(Object.assign({}, f, { data: dataUrl }), win);
-        }
-        function printImage(f, win) {
-            const blob = dataUrlToBlob(f.data);
-            const url = URL.createObjectURL(blob);
-            win = win || window.open('', '_blank');
-            if (!win) { alert('يرجى السماح بالنوافذ المنبثقة للمعاينة والطباعة'); return; }
-            win.document.write('<html dir="rtl"><head><title>' + escapeHtml(f.name) + '</title></head><body style="margin:0;text-align:center;"><img src="' + url + '" style="max-width:95vw;max-height:95vh;"></body></html>');
+            win.document.write('<html><head><title>' + escapeHtml(f.name) + '</title></head><body style="margin:0;text-align:center;"><img src="' + url + '" style="max-width:95vw;max-height:95vh;"></body></html>');
             win.document.close();
             win.focus();
-            win.onload = () => { try { win.print(); } catch (e) {} setTimeout(() => URL.revokeObjectURL(url), 10000); };
-            setTimeout(function () { try { win.print(); } catch (e) {} }, 800);
+            win.onload = () => { win.print(); setTimeout(() => URL.revokeObjectURL(url), 10000); };
         }
-        function printGeneric(f, win) {
+
+        function printGeneric(f) {
             const blob = dataUrlToBlob(f.data);
             const url = URL.createObjectURL(blob);
-            if (win) win.location.href = url;
-            else if (!window.open(url, '_blank')) alert('يرجى السماح بالنوافذ المنبثقة للطباعة');
+            const win = window.open(url, '_blank');
+            if (!win) alert('يرجى السماح بالنوافذ المنبثقة للطباعة');
             setTimeout(() => URL.revokeObjectURL(url), 60000);
         }
-        let uploadingFiles = false;
 
-        async function addFiles() {
+        function addFiles() {
             const input = document.getElementById('files-input');
-            if (uploadingFiles) { alert('جارٍ رفع ملفات... انتظر قليلاً'); return; }
             if (!input.files || input.files.length === 0) { alert('اختر ملفاً أولاً'); return; }
             const a = appointments.find(x => x.id === filesEditingId);
             if (!a) return;
             a.files = a.files || [];
             const files = Array.from(input.files);
-            uploadingFiles = true;
-            let uploaded = 0, inline = 0, failed = 0;
-            try {
-                for (let k = 0; k < files.length; k++) {
-                    const file = files[k];
-                    renderFilesList(a, 'جارٍ رفع: ' + file.name + ' (' + (k + 1) + '/' + files.length + ')');
-                    const up = await uploadAttachment(file);
-                    if (up && up.path) {
-                        a.files.push({ name: file.name, type: file.type || up.type || '', size: file.size, path: up.path, url: up.url || '' });
-                        uploaded++;
-                        continue;
-                    }
-                    if (file.size <= 1.5 * 1024 * 1024) {
-                        try {
-                            const dataUrl = await readAsDataURL(file);
-                            a.files.push({ name: file.name, type: file.type, size: file.size, data: dataUrl, inline: true });
-                            inline++;
-                            continue;
-                        } catch (e) {}
-                    }
-                    failed++;
-                    alert('تعذّر رفع الملف «' + file.name + '». تأكد من الاتصال بالإنترنت ثم أعد المحاولة.');
+            let pending = files.length;
+            files.forEach(file => {
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('الملف «' + file.name + '» أكبر من 2 ميجابايت، لا يمكن إضافته.');
+                    pending--;
+                    if (pending === 0) finishAddFiles(a);
+                    return;
                 }
-            } finally {
-                uploadingFiles = false;
-            }
-            document.getElementById('files-input').value = '';
-            saveAppointments(appointments);
-            renderFilesList(a, uploaded ? ('تم رفع ' + uploaded + ' ملف') : (inline ? 'تم حفظ الملف داخل قاعدة البيانات' : ''));
-            render();
-            if (inline) alert('تم حفظ ' + inline + ' مرفق داخل قاعدة البيانات، ويُفضّل إعادة المحاولة لاحقًا لرفعه كملف منفصل.');
+                const reader = new FileReader();
+                reader.onload = e => {
+                    a.files.push({ name: file.name, type: file.type, data: e.target.result });
+                    pending--;
+                    if (pending === 0) finishAddFiles(a);
+                };
+                reader.readAsDataURL(file);
+            });
         }
+
+        function finishAddFiles(a) {
+            saveAppointments(appointments);
+            document.getElementById('files-input').value = '';
+            renderFilesList(a);
+            render();
+        }
+
         function removeFile(i) {
             const a = appointments.find(x => x.id === filesEditingId);
             if (!a || !a.files) return;
@@ -3115,6 +2550,7 @@
             renderFilesList(a);
             render();
         }
+
         const form = document.getElementById('appointment-form');
         const tableBody = document.getElementById('table-body');
         const searchInput = document.getElementById('search');
@@ -3125,8 +2561,9 @@
             if (document.getElementById('appointment-form').classList.contains('status-mode')) {
                 saveStatusOnlyForm();
                 return;
-        }
-        const id = document.getElementById('edit-id').value;
+            }
+
+            const id = document.getElementById('edit-id').value;
             const data = {
                 number: document.getElementById('number').value.trim(),
                 name: document.getElementById('name').value.trim(),
@@ -3169,13 +2606,16 @@
                 savedWa = data;
                 lastLocalAdd = Date.now();
                 pendingForce.push(JSON.stringify(data));
-                saveLocalSoon();
+                try { localStorage.setItem('appointments_backup', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
+                try { localStorage.setItem('appointments_force', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
             }
 
             appointments = appointments.slice();
             try { if (currentTab === 'done') currentTab = 'active'; } catch(e){}
             try { adminDeptFilter = null; adminThreadFilter = false; adminStatusFilter = false; } catch(e){}
-            saveLocalSoon();
+            try { localStorage.setItem('appointments_backup', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
+            try { localStorage.setItem('appointments_force', JSON.stringify({appointments: appointments, ts: Date.now()})); } catch(e){}
+            try { localStorage.setItem('appointments_all', JSON.stringify(appointments)); } catch(e){}
             markDirtyByDiff();
             renderPending = false;
             renderScheduled = false;
@@ -3195,6 +2635,7 @@
                 el.disabled = disabled;
             });
         }
+
         function openStatusForm(id) {
             const a = appointments.find(x => x.id === id);
             if (!a) return;
@@ -3204,6 +2645,7 @@
             document.getElementById('submit-btn').textContent = '💾 حفظ حالة الطلب';
             setFormFieldsDisabled(true);
         }
+
         function saveStatusOnlyForm() {
             const id = Number(document.getElementById('edit-id').value);
             const idx = appointments.findIndex(a => a.id === id);
@@ -3217,6 +2659,7 @@
             alert('تم حفظ حالة الطلب');
             if (waDoneStatus(val)) waNotify('done', appointments[idx]);
         }
+
         function resetForm() {
             form.reset();
             document.getElementById('appointment-form').classList.remove('status-mode');
@@ -3226,6 +2669,7 @@
             document.getElementById('submit-btn').textContent = 'حفظ الموعد';
             document.getElementById('cancel-btn').style.display = 'none';
         }
+
         function editAppointment(id) {
             const a = appointments.find(x => x.id === id);
             if (!a) return;
@@ -3262,17 +2706,20 @@
             document.getElementById('cancel-btn').style.display = 'block';
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
         function deleteAppointment(id) {
             if (!confirm('هل تريد حذف هذا الموعد؟')) return;
             appointments = appointments.filter(a => a.id !== id);
             saveAppointments(appointments);
             render();
         }
+
         function escapeHtml(str) {
             return String(str || '').replace(/[&<>"']/g, c => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
             }[c]));
         }
+
         function getFiltered() {
             const q = searchInput.value.trim().toLowerCase();
             return scoped().filter(a => {
@@ -3284,6 +2731,7 @@
                 return matchQ;
             });
         }
+
         function render() {
             if (!tableBody) return;
             renderPending = false;
@@ -3325,6 +2773,7 @@
 
             updateStats();
         }
+
         function statShowAll() {
             adminDeptFilter = null;
             adminThreadFilter = false;
@@ -3332,6 +2781,7 @@
             switchTab('active');
             scheduleRender();
         }
+
         function statDeptUnder(d) {
             adminThreadFilter = false;
             adminStatusFilter = false;
@@ -3339,6 +2789,7 @@
             switchTab('active');
             scheduleRender();
         }
+
         function statShowDone() {
             adminDeptFilter = null;
             adminThreadFilter = false;
@@ -3346,6 +2797,7 @@
             switchTab('done');
             scheduleRender();
         }
+
         function statShowThread() {
             adminDeptFilter = null;
             adminThreadFilter = !adminThreadFilter;
@@ -3353,6 +2805,7 @@
             switchTab('active');
             scheduleRender();
         }
+
         function statShowNoStatus() {
             adminDeptFilter = null;
             adminThreadFilter = false;
@@ -3360,12 +2813,14 @@
             switchTab('active');
             scheduleRender();
         }
+
         function threadNoteLine(a) {
             if (!currentUser || currentUser.role !== 'dept' || !a.toDeptNote || !Array.isArray(a.thread)) return '';
             const m = a.thread.slice().reverse().find(x => x.role === 'admin');
             if (!m) return '';
             return '<div class="appt-line" style="background:#fff3cd;border:1px solid #f0ad4e;border-radius:8px;"><b>💬 مكتب المدير العام:</b> ' + escapeHtml(m.text || '') + '</div>';
         }
+
         function stageChips(a) {
             const chips = [];
             if (a.statementSent || a.completed) chips.push('<span class="chip chip-ok">إفادة</span>');
@@ -3379,6 +2834,7 @@
             if (a.status) chips.push('<span class="chip chip-ok">حالة</span>');
             return chips.length ? chips.join('') : '<span class="chip chip-mut">جديد</span>';
         }
+
         function actionButtons(a) {
             if (currentUser && currentUser.role === 'dept') {
                 let deptBtns = '';
@@ -3419,18 +2875,21 @@
             }
             return ``;
         }
+
         function roleAll() {
             if (currentUser && currentUser.role === 'dept') {
                 return appointments.filter(a => normStr(a.department) === normStr(currentUser.dept));
             }
             return appointments;
         }
+
         function statBox(num, label, icon, active, onclick) {
             return '<div class="stat-box clickable' + (active ? ' active' : '') + '" onclick="' + onclick + '">' +
                 '<div class="stat-ico">' + icon + '</div>' +
                 '<div class="stat-number">' + num + '</div>' +
                 '<div class="stat-label">' + label + '</div></div>';
         }
+
         function updateStats() {
             const list = roleAll();
             const total = list.length;
@@ -3470,6 +2929,7 @@
                 grid.innerHTML = boxTotal + boxDone + boxWip + boxRate;
             }
         }
+
         const ALERT_OFFICE_MAILS = ['Hdosary@alriyadh.gov.sa', 'anaf@alriyadh.gov.sa'];
         const ALERT_DEPT_MAILS = [
             { match: 'رخص البناء', mails: ['raalzahrani@alriyadh.gov.sa', 'RAlmoedy@alriyadh.gov.sa'] },
@@ -3485,6 +2945,7 @@
             }
             return null;
         }
+
         function emailCfg() {
             return {
                 user: (localStorage.getItem('ej_user') || '').trim(),
@@ -3493,6 +2954,7 @@
                 auto: localStorage.getItem('ej_auto') === '1'
             };
         }
+
         function saveEmailCfg() {
             const g = function (id) { return document.getElementById(id); };
             if (!g('ej-user')) return;
@@ -3504,12 +2966,14 @@
             if (st) { st.textContent = 'تم الحفظ ✓'; st.style.color = '#7ee0a8'; }
             renderAlertMailsHint();
         }
+
         function renderAlertMailsHint() {
             const el = document.getElementById('ej-mails');
             if (!el) return;
             el.textContent = 'المستلمون — مكتب المدير العام: ' + ALERT_OFFICE_MAILS.join('، ') +
                 ' — الإدارات: ' + ALERT_DEPT_MAILS.map(m => m.match + ' (' + m.mails.join('، ') + ')').join(' | ');
         }
+
         function loadEmailCfgIntoForm() {
             const cfg = emailCfg();
             const g = function (id) { return document.getElementById(id); };
@@ -3525,6 +2989,7 @@
             }
             renderAlertMailsHint();
         }
+
         function sendEmailJS(to, subject, message) {
             const cfg = emailCfg();
             if (!cfg.user || !cfg.service || !cfg.template) {
@@ -3554,6 +3019,7 @@
                 return true;
             });
         }
+
         function activeAppts(list) {
             return list.filter(a => !isDone(a)).sort(function (x, y) {
                 const dx = (x.date || '') + 'T' + (x.time || '');
@@ -3561,6 +3027,7 @@
                 return dx < dy ? -1 : (dx > dy ? 1 : 0);
             });
         }
+
         function alertGroups() {
             const all = activeAppts(roleAll());
             const groups = [{ title: 'مكتب المدير العام (كل المواعيد المحالة)', mails: ALERT_OFFICE_MAILS, list: all }];
@@ -3575,6 +3042,7 @@
             Object.keys(byDept).forEach(function (k) { groups.push(byDept[k]); });
             return groups;
         }
+
         function alertMessage(g) {
             const lines = ['السلام عليكم،', '',
                 'تذكير بالمواعيد المحالة على ' + g.title + ' — عددها: ' + g.list.length,
@@ -3587,10 +3055,12 @@
                 'تاريخ الإرسال: ' + new Date().toLocaleString('en-GB'));
             return lines.join('\n');
         }
+
         function setAlertMsg(i, text, cls) {
             const el = document.getElementById('alert-msg-' + i);
             if (el) { el.textContent = text; el.className = 'alert-msg' + (cls ? ' ' + cls : ''); }
         }
+
         function renderAlerts() {
             const esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
             const cfg = emailCfg();
@@ -3612,15 +3082,18 @@
                     '</div>';
             }).join('');
         }
+
         function openAlerts() {
             if (!currentUser || currentUser.role !== 'admin') return;
             ALERT_GROUPS = alertGroups();
             renderAlerts();
             document.getElementById('alerts-overlay').style.display = 'flex';
         }
+
         function closeAlerts() {
             document.getElementById('alerts-overlay').style.display = 'none';
         }
+
         function sendAlertGroup(i) {
             const g = ALERT_GROUPS[i];
             if (!g) return Promise.resolve();
@@ -3631,6 +3104,7 @@
                 .then(function () { setAlertMsg(i, 'تم إرسال التنبيه بنجاح ✓', 'ok'); })
                 .catch(function (e) { setAlertMsg(i, 'تعذّر الإرسال: ' + e.message, 'err'); });
         }
+
         function sendAllAlerts() {
             const sub = document.getElementById('alerts-sub');
             let i = 0;
@@ -3644,6 +3118,7 @@
             };
             next();
         }
+
         function testEmail() {
             const st = document.getElementById('ej-status');
             saveEmailCfg();
@@ -3653,11 +3128,13 @@
                 .then(function () { if (st) { st.textContent = 'تم إرسال رسالة الاختبار ✓'; st.style.color = '#7ee0a8'; } })
                 .catch(function (e) { if (st) { st.textContent = 'فشل: ' + e.message; st.style.color = '#ff9b9b'; } });
         }
+
         function openAlertsSettings() {
             closeAlerts();
             openSettings();
             switchSettingsTab('alerts');
         }
+
         function maybeAutoAlert() {
             const cfg = emailCfg();
             if (!cfg.user || !cfg.service || !cfg.template || !cfg.auto) return;
@@ -3682,6 +3159,7 @@
             };
             next();
         }
+
         const WA_DEFAULT_FROM = '+14155238886';
         let waDirty = false;
 
@@ -3730,6 +3208,7 @@
                     '</tr>';
             }).join('');
         }
+
         function waReadRows() {
             const tb = document.getElementById('wa-numbers');
             const rows = [];
@@ -3742,16 +3221,19 @@
             });
             return rows;
         }
+
         function waAddRow() {
             WA.rows = waReadRows();
             WA.rows.push({ label: '', num: '' });
             renderWaRows();
         }
+
         function waRemoveRow(i) {
             WA.rows = waReadRows();
             WA.rows.splice(i, 1);
             renderWaRows();
         }
+
         function loadWaIntoForm() {
             const g = function (id) { return document.getElementById(id); };
             if (!g('wa-enabled')) return;
@@ -3775,6 +3257,7 @@
                 }
             }
         }
+
         function saveWaCfg(showMsg) {
             const g = function (id) { return document.getElementById(id); };
             if (!g('wa-enabled')) return;
@@ -3793,6 +3276,7 @@
             const st = g('wa-status');
             if (st) { st.textContent = 'تم حفظ إعدادات الواتساب ✓' + (showMsg ? '' : ''); st.style.color = '#7ee0a8'; }
         }
+
         function waNumsFor(deptName) {
             const key = normStr(deptName || '');
             const out = [];
@@ -3806,25 +3290,28 @@
             });
             return out;
         }
+
         function waOfficeNums() {
             return WA.rows.filter(function (r) {
                 return /مكتب|المدير|director office/.test(normStr(r.label || '')) && waNormNum(r.num || '');
             }).map(function (r) { return (r.num || '').trim(); });
         }
+
         function groupWaNums(g) {
             const office = waOfficeNums();
             if (!g || !g.title) return office;
             if (/مكتب|المدير/.test(normStr(g.title))) return office;
             return waNumsFor(g.title).concat(office);
         }
+
         function waSend(to, body) {
             if (!WA.sid || !WA.token) {
                 return Promise.reject(new Error('بيانات Twilio غير مكتملة — الإعدادات ← تبويب الواتساب'));
             }
             if (!/^\+[0-9]{8,15}$/.test(String(to).trim())) {
                 return Promise.reject(new Error('رقم غير صالح (الصيغة الدولية): ' + to));
-        }
-        const sid = WA.sid.trim();
+            }
+            const sid = WA.sid.trim();
             const auth = 'Basic ' + btoa(unescape(encodeURIComponent(sid + ':' + WA.token.trim())));
             const params = new URLSearchParams();
             params.set('To', String(to).trim());
@@ -3848,20 +3335,24 @@
                 });
             });
         }
+
         function waBodyReferral(a) {
             return 'تنبيه: موعد محال على ' + (a.department || 'غير محدد') + '\n' +
                 'الاسم: ' + (a.name || '') + '\nالموضوع: ' + (a.subject || '') + '\n' +
                 'التاريخ: ' + arDate(a.date) + ' — ' + arTime(a.time) + '\nالرقم: ' + (a.number || '');
         }
+
         function waBodyDone(a) {
             return 'اكتمل إجراء موعد:\n' +
                 'الاسم: ' + (a.name || '') + '\nالموضوع: ' + (a.subject || '') + '\n' +
                 'التاريخ: ' + arDate(a.date) + ' — ' + arTime(a.time) + '\n' +
                 'الحالة: ' + (a.status || '') + '\nالرقم: ' + (a.number || '');
         }
+
         function waDoneStatus(v) {
             return /منجز|مكتمل|منتهي|موق|اعتمد|مؤرشف/.test(normStr(v || ''));
         }
+
         function waNotify(event, a) {
             if (!WA.enabled || !a) return;
             const mode = WA.mode || 'manual';
@@ -3879,6 +3370,7 @@
                 waSend(n, body).catch(function (e) { console.warn('تنبيه واتساب:', n, e.message || e); });
             });
         }
+
         function sendAlertWa(i) {
             const g = ALERT_GROUPS[i];
             if (!g) return;
@@ -3894,6 +3386,7 @@
                 .then(function () { setAlertMsg(i, 'تم إرسال الواتساب إلى ' + nums.length + ' رقم ✓', 'ok'); })
                 .catch(function (e) { setAlertMsg(i, 'تعذّر إرسال الواتساب: ' + e.message, 'err'); });
         }
+
         function testWa() {
             saveWaCfg();
             const g = function (id) { return document.getElementById(id); };
@@ -3905,6 +3398,7 @@
                 .then(function () { if (st) { st.textContent = 'تم الإرسال بنجاح إلى ' + picked + ' ✓'; st.style.color = '#7ee0a8'; } })
                 .catch(function (e) { if (st) { st.textContent = 'فشل: ' + e.message; st.style.color = '#ff9b9b'; } });
         }
+
         function registerRows() {
             const list = roleAll().slice();
             list.sort(function (x, y) {
@@ -3914,6 +3408,7 @@
             });
             return list;
         }
+
         function openRegister() {
             if (!currentUser || currentUser.role !== 'admin') return;
             const esc = function (v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
@@ -3925,13 +3420,16 @@
             document.getElementById('reg-subtitle').textContent = 'عدد المواعيد: ' + list.length + ' — تاريخ الطباعة: ' + new Date().toLocaleDateString('en-GB');
             document.getElementById('register-overlay').style.display = 'flex';
         }
+
         function closeRegister() {
             document.getElementById('register-overlay').style.display = 'none';
         }
+
         function printRegister() {
             document.body.classList.add('print-register');
             window.print();
         }
+
         function exportExcel() {
             const list = getFiltered();
             if (list.length === 0) { alert('لا توجد بيانات للتصدير'); return; }
@@ -3973,6 +3471,7 @@ ${bodyRows}
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
         }
+
         function arDate(iso) {
             if (!iso) return '-';
             const d = new Date(iso + 'T00:00:00');
@@ -3981,6 +3480,7 @@ ${bodyRows}
             const dt = d.toLocaleDateString('en-GB');
             return `${wd} (${dt}م)`;
         }
+
         function arTime(t) {
             if (!t) return '-';
             const parts = String(t).split(':');
@@ -3990,6 +3490,7 @@ ${bodyRows}
             const h12 = h % 12 || 12;
             return `${h12}:${String(m).padStart(2, '0')}:00 ${ampm}`;
         }
+
         function normStr(s) {
             return String(s || '')
                 .replace(/إ|أ|آ/g, 'ا')
@@ -3997,6 +3498,7 @@ ${bodyRows}
                 .replace(/شئون|شؤون/g, 'شوون')
                 .replace(/\s+/g, '');
         }
+
         let PDFJS_PROMISE = null;
         let TPL_BUILD_PROMISE = null;
         function loadPdfJs() {
@@ -4016,6 +3518,7 @@ ${bodyRows}
             });
             return PDFJS_PROMISE;
         }
+
         function dataUrlToUint8(dataUrl) {
             const base64 = String(dataUrl).split(',')[1] || '';
             const bin = atob(base64);
@@ -4023,6 +3526,7 @@ ${bodyRows}
             for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
             return arr;
         }
+
         async function renderPdfPages(dataUrl) {
             const pdfjsLib = await loadPdfJs();
             const pdf = await pdfjsLib.getDocument({ data: dataUrlToUint8(dataUrl) }).promise;
@@ -4041,6 +3545,7 @@ ${bodyRows}
             }
             return out;
         }
+
         function tplFileHeadHtml(logoSrc, n, num) {
             return '<div class="tpl-file-head">' +
                 (logoSrc ? '<img src="' + logoSrc + '" alt="شعار أمانة الرياض">' : '') +
@@ -4052,52 +3557,51 @@ ${bodyRows}
                 '<div class="tpl-no">مرفق رقم: ' + n + ' — طلب رقم: ' + num + '</div>' +
             '</div>';
         }
+
         function tplFileItemHtml(headHtml, innerHtml) {
             return '<div class="tpl-file-item">' + headHtml + '<div class="tpl-file-body">' + innerHtml + '</div></div>';
         }
+
         function tplDocPlaceholder(name) {
             return '<div class="tpl-file-doc"><div class="tpl-file-ico">📎</div>' +
                 '<div class="tpl-file-docname">' + escapeHtml(name || 'مرفق') + '</div>' +
                 '<div class="tpl-file-docnote">تعذّر معاينة هذا النوع من الملفات داخل النموذج</div></div>';
         }
+
         async function buildTemplateFiles(a, logoSrc) {
             const fullBox = document.getElementById('tpl-files-full');
             if (!fullBox) return;
-            fullBox.innerHTML = '<div style="padding:10px;color:#555">جارٍ تحميل المرفقات...</div>';
+            fullBox.innerHTML = '';
             const num = a.number || '-';
             const files = a.files || [];
             let counter = 0;
-            let html = '';
             for (let k = 0; k < files.length; k++) {
                 const f = files[k];
                 const type = String(f.type || '');
-                const dataUrl = await getFileDataUrl(f);
-                if (!dataUrl) {
-                    counter++;
-                    html += tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), tplDocPlaceholder(f.name));
-                    continue;
-        }
-        const isImg = type.startsWith('image/') || dataUrl.startsWith('data:image/');
-                const isPdf = !isImg && (type.indexOf('pdf') !== -1 || dataUrl.indexOf('data:application/pdf') === 0);
+                const data = String(f.data || '');
+                const isImg = type.startsWith('image/') || data.startsWith('data:image/');
+                const isPdf = !isImg && (type.indexOf('pdf') !== -1 || data.indexOf('data:application/pdf') === 0);
                 if (isPdf) {
                     let pages = null;
-                    try { pages = await renderPdfPages(dataUrl); } catch (e) { pages = null; }
+                    try { pages = await renderPdfPages(f.data); } catch (e) { pages = null; }
                     if (pages && pages.length) {
                         for (let p = 0; p < pages.length; p++) {
                             counter++;
-                            html += tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), '<img src="' + pages[p] + '" alt="مرفق">');
+                            const head = tplFileHeadHtml(logoSrc, counter, num);
+                            fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(head, '<img src="' + pages[p] + '" alt="مرفق">'));
                         }
                     } else {
                         counter++;
-                        html += tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), tplDocPlaceholder(f.name));
+                        fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), tplDocPlaceholder(f.name)));
                     }
                     continue;
                 }
                 counter++;
-                html += tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), isImg ? ('<img src="' + dataUrl + '" alt="مرفق">') : tplDocPlaceholder(f.name));
+                const inner = isImg ? ('<img src="' + f.data + '" alt="مرفق">') : tplDocPlaceholder(f.name);
+                fullBox.insertAdjacentHTML('beforeend', tplFileItemHtml(tplFileHeadHtml(logoSrc, counter, num), inner));
             }
-            fullBox.innerHTML = html;
         }
+
         function openTemplate(id) {
             const a = appointments.find(x => x.id === id);
             if (!a) return;
@@ -4125,8 +3629,9 @@ ${bodyRows}
             if (sigImg) {
                 if (sigData) { sigImg.src = sigData; sigImg.style.display = 'block'; }
                 else { sigImg.style.display = 'none'; }
-        }
-        const depts = [
+            }
+
+            const depts = [
                 'إدارة الرخص التجارية والإستثمارية',
                 'إدارة شئون الأراضي',
                 'إدارة رخص البناء'
@@ -4143,16 +3648,19 @@ ${bodyRows}
                 a.templateSaved = true;
                 a.templateDate = new Date().toISOString();
                 saveAppointments(appointments);
-        }
-        const fullBox = document.getElementById('tpl-files-full');
+            }
+
+            const fullBox = document.getElementById('tpl-files-full');
             if (fullBox) { fullBox.innerHTML = ''; }
             TPL_BUILD_PROMISE = buildTemplateFiles(a, logo ? logo.src : '');
 
             document.getElementById('template-overlay').style.display = 'flex';
         }
+
         function closeTemplate() {
             document.getElementById('template-overlay').style.display = 'none';
         }
+
         function returnToStatement(id) {
             if (!confirm('هل تريد إعادة تحويل الموعد للإدارة المختصة لتحرير الإفادة؟')) return;
             const idx = appointments.findIndex(x => x.id === id);
@@ -4168,6 +3676,7 @@ ${bodyRows}
             }
             render();
         }
+
         function requestStatementEdit(id) {
             if (!confirm('هل تريد طلب تعديل الإفادة من الإدارة المختصة؟')) return;
             const idx = appointments.findIndex(x => x.id === id);
@@ -4183,6 +3692,7 @@ ${bodyRows}
             }
             render();
         }
+
         function signAppointment(id) {
             const idx = appointments.findIndex(x => x.id === id);
             if (idx === -1) return;
@@ -4195,8 +3705,8 @@ ${bodyRows}
                 saveAppointments(appointments);
                 render();
                 return;
-        }
-        const sig = META.directorSignature;
+            }
+            const sig = META.directorSignature;
             if (!sig) {
                 if (confirm('لا يوجد توقيع محفوظ. هل تريد إنشاء توقيعك الآن؟')) openSignature();
                 return;
@@ -4209,6 +3719,7 @@ ${bodyRows}
             render();
             waNotify('done', a);
         }
+
         function toggleDiscussion(id) {
             const idx = appointments.findIndex(x => x.id === id);
             if (idx === -1) return;
@@ -4236,6 +3747,7 @@ ${bodyRows}
             saveAppointments(appointments);
             render();
         }
+
         let signCtx = null;
         let signDrawing = false;
         let signHasInk = false;
@@ -4260,6 +3772,7 @@ ${bodyRows}
             }
             document.getElementById('sign-overlay').style.display = 'flex';
         }
+
         function bindSignEvents(canvas) {
             if (canvas.dataset.bound) return;
             canvas.dataset.bound = '1';
@@ -4279,15 +3792,18 @@ ${bodyRows}
             canvas.addEventListener('touchmove', move, { passive: false });
             window.addEventListener('touchend', end);
         }
+
         function clearSignature() {
             const canvas = document.getElementById('sign-canvas');
             if (!signCtx) signCtx = canvas.getContext('2d');
             signCtx.clearRect(0, 0, canvas.width, canvas.height);
             signHasInk = false;
         }
+
         function closeSignature() {
             document.getElementById('sign-overlay').style.display = 'none';
         }
+
         function loadSignatureFile(e) {
             const file = e.target.files && e.target.files[0];
             e.target.value = '';
@@ -4309,6 +3825,7 @@ ${bodyRows}
             reader.onload = (ev) => { img.src = ev.target.result; };
             reader.readAsDataURL(file);
         }
+
         function saveSignature() {
             const canvas = document.getElementById('sign-canvas');
             if (!signHasInk) { alert('يرجى رسم التوقيع أولاً'); return; }
@@ -4320,11 +3837,12 @@ ${bodyRows}
             closeSignature();
             alert('تم حفظ التوقيع');
         }
+
         async function printTemplate(withFiles) {
             if (withFiles && TPL_BUILD_PROMISE) {
                 try { await TPL_BUILD_PROMISE; } catch (e) {}
-        }
-        let wf = !!withFiles;
+            }
+            let wf = !!withFiles;
             if (wf) {
                 const box = document.getElementById('tpl-files-full');
                 wf = !!(box && box.querySelector('.tpl-file-item'));

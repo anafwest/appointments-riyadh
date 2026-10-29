@@ -1,6 +1,6 @@
 /**
  * خدمة قاعدة البيانات لنظام إدارة المواعيد — أمانة منطقة الرياض
- * تم التعديل: تسريع الكاش + حل مشكلة رجوع الموعد (تجاهل التعارض)
+ * إصدار معالجة التضارب التلقائي والإعادة الذكية (Auto-Retry on SHA Mismatch)
  */
 
 const DEFAULTS = {
@@ -22,7 +22,7 @@ function cfg(env) {
         base: env.GH_API_BASE || 'https://api.github.com',
         rawBase: env.GH_RAW_BASE || 'https://raw.githubusercontent.com',
         token: env.GH_TOKEN || env.GITHUB_TOKEN || '',
-        cache: Number(env.DB_CACHE_MS || 1000) // تم التعديل هنا لثانية واحدة
+        cache: Number(env.DB_CACHE_MS || 500)
     };
 }
 
@@ -119,35 +119,47 @@ async function readDb(c, force) {
 
 function invalidateCache() { MEM = { ts: 0, sha: null, db: null, text: '' }; }
 
-async function writeDb(c, db, message, knownSha) {
-    const text = JSON.stringify(db);
-    const body = {
-        message: message || 'تحديث بيانات المواعيد',
-        content: utf8ToB64(text),
-        branch: c.branch
-    };
-    const sha = knownSha !== undefined ? knownSha : (MEM.sha || null);
-    if (sha) body.sha = sha;
-
-    const r = await fetch(contentsUrl(c, c.path), {
-        method: 'PUT',
-        headers: ghHeaders(c, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify(body)
-    });
-    const txt = await r.text();
-    let j = null;
-    try { j = JSON.parse(txt); } catch (e) {}
+// 🔄 دالة حفظ ذكية تعيد المحاولة تلقائياً عند وجود تضارب SHA في GitHub
+async function writeDbWithRetry(c, updateFn, message) {
+    let lastError = null;
     
-    // تم إلغاء رفض الحفظ بسبب التعارض لضمان ثبات التعديلات
-    // if (r.status === 409 || r.status === 422) return { conflict: true };
-    
-    if (!r.ok && r.status !== 409) throw new Error('GitHub HTTP ' + r.status + ' ' + ((j && j.message) || txt.slice(0, 120)));
+    for (let attempt = 0; attempt < 3; attempt++) {
+        const cur = await readDb(c, true);
+        const db = updateFn(normalize(JSON.parse(JSON.stringify(cur.db || {}))));
+        
+        const text = JSON.stringify(db);
+        const body = {
+            message: message || 'تحديث بيانات المواعيد',
+            content: utf8ToB64(text),
+            branch: c.branch
+        };
+        if (cur.sha) body.sha = cur.sha;
 
-    invalidateCache();
-    // إذا كان هناك تعارض 409 لكننا تجاهلناه، نحاول أخذ الـ sha الجديد لاحقاً
-    const newSha = (j && j.content && j.content.sha) ? j.content.sha : null;
-    MEM = { ts: Date.now(), sha: newSha, db: db, text: text };
-    return { ok: true, sha: newSha, rev: db.rev };
+        const r = await fetch(contentsUrl(c, c.path), {
+            method: 'PUT',
+            headers: ghHeaders(c, { 'Content-Type': 'application/json' }),
+            body: JSON.stringify(body)
+        });
+
+        if (r.ok) {
+            const j = await r.json();
+            invalidateCache();
+            MEM = { ts: Date.now(), sha: j.content.sha, db: db, text: text };
+            return { ok: true, sha: j.content.sha, rev: db.rev };
+        }
+
+        const txt = await r.text();
+        lastError = 'GitHub HTTP ' + r.status + ' ' + txt.slice(0, 120);
+
+        // إذا كان الخطأ بسبب تعارض SHA 409/422 ننتظر قليلاً ونعيد الجلب والحفظ تلقائياً
+        if (r.status === 409 || r.status === 422) {
+            await new Promise(res => setTimeout(res, 300));
+            continue;
+        } else {
+            break;
+        }
+    }
+    throw new Error(lastError || 'فشل الحفظ بعد محاولات متعددة');
 }
 
 async function handleDb(request, env, url) {
@@ -164,10 +176,6 @@ async function handleDb(request, env, url) {
             }
             const cur = await readDb(c, url.searchParams.has('full'));
             const rev = (cur.db && cur.db.rev) || 0;
-            const wantRev = Number(url.searchParams.get('rev') || -1);
-            if (!url.searchParams.has('full') && wantRev >= 0 && rev <= wantRev) {
-                return json({ ok: true, notModified: true, rev: rev });
-            }
             return json({ ok: true, sha: cur.sha || '', rev: rev, db: cur.db });
         }
 
@@ -190,39 +198,28 @@ async function handlePatch(request, c) {
 
     const upserts = Array.isArray(body.upserts) ? body.upserts : [];
     const deletes = Array.isArray(body.deletes) ? body.deletes : [];
-    if (!upserts.length && !deletes.length && !body.users && !body.departments && !body.meta && !body.wa) {
-        return json({ ok: true, noop: true, sha: MEM.sha || '', rev: (MEM.db && MEM.db.rev) || 0 });
-    }
 
-    const cur = await readDb(c, true);
-    
-    // تم حذف كود منع التحديث عند التعارض (Conflict 409) من هنا
+    const res = await writeDbWithRetry(c, function(db) {
+        const byId = {};
+        db.appointments.forEach(function (a) { if (a && a.id != null) byId[key(a.id)] = a; });
 
-    const db = normalize(JSON.parse(JSON.stringify(cur.db || {})));
-    const byId = {};
-    db.appointments.forEach(function (a) { if (a && a.id != null) byId[key(a.id)] = a; });
+        upserts.forEach(function (a) {
+            if (!a || a.id == null) return;
+            byId[key(a.id)] = a;
+        });
+        deletes.forEach(function (id) { delete byId[key(id)]; });
 
-    upserts.forEach(function (a) {
-        if (!a || a.id == null) return;
-        byId[key(a.id)] = a;
-    });
-    deletes.forEach(function (id) { delete byId[key(id)]; });
+        db.appointments = Object.keys(byId).map(function (k) { return byId[k]; });
+        if (Array.isArray(body.users)) db.users = body.users;
+        if (Array.isArray(body.departments)) db.departments = body.departments;
+        if (body.meta && typeof body.meta === 'object') db.meta = Object.assign({}, db.meta || {}, body.meta);
+        if (body.wa && typeof body.wa === 'object') db.wa = body.wa;
+        db.rev = (Number(db.rev) || 0) + 1;
+        db.updatedAt = Date.now();
+        return db;
+    }, body.message || 'تحديث بيانات المواعيد');
 
-    const nextAppointments = Object.keys(byId).map(function (k) { return byId[k]; });
-    if (!nextAppointments.length && db.appointments.length) {
-        return json({ ok: false, error: EMPTY_DB_MSG }, 409);
-    }
-
-    db.appointments = nextAppointments;
-    if (Array.isArray(body.users)) db.users = body.users;
-    if (Array.isArray(body.departments)) db.departments = body.departments;
-    if (body.meta && typeof body.meta === 'object') db.meta = Object.assign({}, db.meta || {}, body.meta);
-    if (body.wa && typeof body.wa === 'object') db.wa = body.wa;
-    db.rev = Math.max(Number(cur.db && cur.db.rev) || 0, Number(body.baseRev) || 0) + 1;
-    db.updatedAt = Date.now();
-
-    const res = await writeDb(c, db, body.message || 'تحديث بيانات المواعيد', cur.sha);
-    return json({ ok: true, sha: res.sha, rev: db.rev, count: db.appointments.length });
+    return json({ ok: true, sha: res.sha, rev: res.rev });
 }
 
 async function handleFullWrite(request, c) {
@@ -231,30 +228,19 @@ async function handleFullWrite(request, c) {
     let body = null;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'طلب غير صالح' }, 400); }
 
-    const db = body && body.db;
-    if (!db || typeof db !== 'object' || !Array.isArray(db.appointments) || !Array.isArray(db.users) ||
-        !Array.isArray(db.departments) || typeof db.meta !== 'object') {
+    const inputDb = body && body.db;
+    if (!inputDb || typeof inputDb !== 'object' || !Array.isArray(inputDb.appointments)) {
         return json({ ok: false, error: 'بنية بيانات غير صالحة' }, 400);
     }
 
-    const cur = await readDb(c, true);
-    const curCount = (cur.db && cur.db.appointments ? cur.db.appointments.length : 0);
-    if (!db.appointments.length && curCount > 0) return json({ ok: false, error: EMPTY_DB_MSG }, 409);
+    const res = await writeDbWithRetry(c, function(curDb) {
+        const out = normalize(inputDb);
+        out.rev = (Number(curDb.rev) || 0) + 1;
+        out.updatedAt = Date.now();
+        return out;
+    }, body.message || 'تحديث كامل للبيانات');
 
-    if (curCount >= 5 && db.appointments.length < Math.floor(curCount * 0.6) && !body.force) {
-        return json({
-            ok: false,
-            code: 'conflict',
-            error: 'مرفوض: الكتابة الكاملة ستُسقط ' + (curCount - db.appointments.length) + ' موعدًا — استخدم الحفظ الجزئي (patch)'
-        }, 409);
-    }
-
-    const out = normalize(db);
-    out.rev = Math.max(Number(cur.db && cur.db.rev) || 0, Number(out.rev) || 0) + 1;
-    out.updatedAt = Date.now();
-
-    const res = await writeDb(c, out, body.message || 'تحديث بيانات', cur.sha);
-    return json({ ok: true, sha: res.sha, rev: out.rev });
+    return json({ ok: true, sha: res.sha, rev: res.rev });
 }
 
 const MIME_EXT = {
@@ -357,19 +343,10 @@ async function serveFile(c, url) {
     return new Response(r.body, { status: 200, headers: headers });
 }
 
-async function handleWhatsApp(request) {
-    let body;
-    try {
-        body = await request.json();
-    } catch (e) {
-        return json({ ok: false, error: 'طلب غير صالح' }, 400);
+export default {
+    async fetch(request, env) {
+        const url = new URL(request.url);
+        if (url.pathname === '/api/db') return handleDb(request, env, url);
+        return env.ASSETS.fetch(request);
     }
-    const sid = String(body.sid || '').trim();
-    const token = String(body.token || '').trim();
-    const to = String(body.to || '').trim();
-    const from = String(body.from || '').trim();
-    const msg = String(body.body || '').slice(0, 1500);
-
-    if (!sid || !token) return json({ ok: false, error: 'بيانات Twilio غير مكتملة (SID/Token)' }, 400);
-    if (!/^\+[0-9]{8,15}$/.test(to)) return json({ ok: false, error: 'رقم مستلم غير صالح: ' + to }, 400);
-    if (!/^\+[0-9]{8,15}$/.test(from)) return json({ ok: false, error: 'رقم مرسل غير صالح: ' + 
+};

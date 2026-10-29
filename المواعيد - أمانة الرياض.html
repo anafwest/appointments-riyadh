@@ -1390,7 +1390,10 @@
         const GH_PATH = 'db.json';
         const GH_BRANCH = 'main';
         const GH_API = 'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/contents/' + GH_PATH;
+        const API_DB = '/api/db';
 
+        let SERVER_DB = null; // null = لم يُفحص، true = خدمة الخادم متاحة، false = غير مهيأة
+        let pollTimer = null;
         let GH_TOKEN = localStorage.getItem('gh_token') || '';
         let LAST_SHA = null;
         let LAST_REV = -1;
@@ -1411,12 +1414,59 @@
         function b64EncodeUnicode(str) { return btoa(unescape(encodeURIComponent(str))); }
         function b64DecodeUnicode(str) { return decodeURIComponent(escape(atob(String(str).replace(/\s/g, '')))); }
 
-        async function ghGetDb() {
+        function normalizeDb(db) {
+            db.appointments = Array.isArray(db.appointments) ? db.appointments : [];
+            db.users = Array.isArray(db.users) ? db.users : [];
+            db.departments = Array.isArray(db.departments) ? db.departments : [];
+            db.meta = (db.meta && typeof db.meta === 'object' && !Array.isArray(db.meta)) ? db.meta : {};
+            db.rev = db.rev || 0;
+            return db;
+        }
+
+        async function ghGetDb(needFull) {
+            // جرب الوسيط أولاً (للتوافق إن كان موجوداً)
+            if (SERVER_DB !== false) {
+                try {
+                    const qs = needFull ? '?full=1&t=' : '?rev=' + (LAST_REV || 0) + '&t=';
+                    const pr = await fetch(API_DB + qs + Date.now(), { headers: { 'Accept': 'application/json' }, cache: 'no-store' });
+                    if (pr.status === 404 || pr.status === 405 || pr.status === 501) {
+                        SERVER_DB = false;
+                    } else if (pr.ok) {
+                        const pj = await pr.json().catch(function () { return null; });
+                        if (pj && pj.db && typeof pj.db === 'object') {
+                            SERVER_DB = true;
+                            LAST_SHA = pj.sha || LAST_SHA;
+                            return normalizeDb(pj.db);
+                        }
+                        if (pj && pj.notModified) {
+                            SERVER_DB = true;
+                            return null;
+                        }
+                    }
+                } catch (e) {
+                    SERVER_DB = false;
+                }
+            }
+            // قراءة مباشرة من raw.githubusercontent.com (يعمل بعد التحويل لـ Firebase)
+            try {
+                const rawUrl = 'https://raw.githubusercontent.com/' + GH_OWNER + '/' + GH_REPO + '/' + GH_BRANCH + '/db.json?t=' + Date.now();
+                const rr = await fetch(rawUrl, { cache: 'no-store', headers: { 'User-Agent': 'appointments-riyadh' } });
+                if (rr.ok) {
+                    const txt = await rr.text();
+                    let db = null;
+                    try { db = JSON.parse(txt); } catch (e) { db = null; }
+                    if (!db || typeof db !== 'object' || Array.isArray(db)) throw new Error('قاعدة البيانات غير صالحة');
+                    SERVER_DB = false;
+                    LAST_SHA = rr.headers.get('etag') || LAST_SHA;
+                    return normalizeDb(db);
+                }
+            } catch (e) {}
+            // fallback إلى GitHub API
             const r = await fetch(GH_API + '?ref=' + GH_BRANCH + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' });
             if (r.status === 404) {
                 if (LAST_REV || appointments.length) throw new Error('قاعدة البيانات غير متاحة مؤقتًا (404) — تم تجاهل هذا التحديث');
                 LAST_SHA = null;
-                return { appointments: [], users: [], departments: [], meta: {}, rev: 0 };
+                return normalizeDb({ appointments: [], users: [], departments: [], meta: {}, rev: 0 });
             }
             if (!r.ok) throw new Error('HTTP ' + r.status);
             const j = await r.json();
@@ -1431,18 +1481,12 @@
             let db = null;
             try { db = JSON.parse(b64DecodeUnicode(content || '')); } catch (e) { db = null; }
             if (!db || typeof db !== 'object' || Array.isArray(db)) throw new Error('رد غير مكتمل من GitHub — تم تجاهل هذا التحديث (حماية من فقدان البيانات)');
-            db.appointments = db.appointments || [];
-            db.users = db.users || [];
-            db.departments = db.departments || [];
-            db.meta = db.meta || {};
-            db.rev = db.rev || 0;
-            return db;
+            return normalizeDb(db);
         }
 
         let PUT_PUSHED = null;
 
-        async function ghPutDb(db, message) {
-            const payload = JSON.stringify(db);
+        function markPushed(db) {
             PUT_PUSHED = {
                 appointments: {},
                 users: JSON.stringify(db.users || null),
@@ -1451,6 +1495,39 @@
                 meta: JSON.stringify(db.meta || null)
             };
             (db.appointments || []).forEach(function (a) { PUT_PUSHED.appointments[a.id] = JSON.stringify(a); });
+        }
+
+        async function ghPutDb(db, message) {
+            const payload = JSON.stringify(db);
+            markPushed(db);
+
+            if (SERVER_DB !== false) {
+                try {
+                    const pr = await fetch(API_DB, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ db: db, sha: LAST_SHA, message: message || 'تحديث بيانات' })
+                    });
+                    if (pr.status === 409 || pr.status === 422) { const e = new Error('conflict'); e.conflict = true; throw e; }
+                    if (pr.status === 404 || pr.status === 405 || pr.status === 501) {
+                        SERVER_DB = false;
+                    } else if (!pr.ok) {
+                        let m = 'HTTP ' + pr.status;
+                        try { const ej = await pr.json(); m = (ej && ej.error) ? ej.error : m; } catch (e) {}
+                        throw new Error(m);
+                    } else {
+                        const pj = await pr.json().catch(function () { return null; });
+                        SERVER_DB = true;
+                        LAST_SHA = (pj && pj.sha) ? pj.sha : LAST_SHA;
+                        return pj || { ok: true };
+                    }
+                } catch (e) {
+                    if (e && e.conflict) throw e;
+                    SERVER_DB = false;
+                }
+            }
+
+            if (!GH_TOKEN) throw new Error('لا يمكن الحفظ مباشرةً بدون وسيط. يرجى استخدام رمز الوصول أو التأكد من وجود الخادم.');
             const body = { message: message || 'تحديث بيانات', content: b64EncodeUnicode(payload), branch: GH_BRANCH };
             if (LAST_SHA) body.sha = LAST_SHA;
             const r = await fetch(GH_API, { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders()), body: JSON.stringify(body) });
@@ -1526,7 +1603,7 @@
         }
 
         async function doSync() {
-            if (!GH_TOKEN) return;
+            if (!GH_TOKEN && SERVER_DB === false) return;
             if (syncing) { syncAgain = true; return; }
             syncing = true;
             try {
@@ -1534,7 +1611,8 @@
                 while (attempt < 25) {
                     attempt++;
                     try {
-                        const db = await ghGetDb();
+                        const db = await ghGetDb(true);
+                        if (!db) break;
                         applyLocalTo(db);
                         db.rev = (db.rev || 0) + 1;
                         await ghPutDb(db, 'تحديث بيانات المواعيد');
@@ -1559,6 +1637,10 @@
             (Array.isArray(db.appointments) ? db.appointments : []).forEach(a => { byId[a.id] = a; });
             dirtyIds.forEach(id => { const local = appointments.find(a => a.id === id); if (local) byId[id] = local; });
             dirtyDeletes.forEach(id => { delete byId[id]; });
+            // حماية: أي موعد موجود محليًا ولم يصل للخادم بعد يبقى ولا يُحذف
+            appointments.forEach(function (a) {
+                if (a && a.id != null && !byId[a.id] && !dirtyDeletes.has(a.id)) { byId[a.id] = a; dirtyIds.add(a.id); }
+            });
             db.appointments = Object.keys(byId).map(k => byId[k]);
             if (usersDirty) db.users = USERS;
             if (deptsDirty) db.departments = DEPARTMENTS;
@@ -1611,11 +1693,13 @@
         let polling = false;
 
         async function poll() {
-            if (!GH_TOKEN || document.hidden || syncing || polling) return;
+            if (SERVER_DB === false && !GH_TOKEN) return;
+            if (document.hidden || syncing || polling) return;
             if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) return;
             polling = true;
             try {
                 const db = await ghGetDb();
+                if (!db) return;
                 if ((db.rev || 0) === LAST_REV) return;
                 if (dirtyIds.size || dirtyDeletes.size || usersDirty || deptsDirty || metaDirty || waDirty) return;
                 applyRemote(db);
@@ -1784,14 +1868,23 @@
             const prev = GH_TOKEN;
             GH_TOKEN = tok;
             try {
-                const db = await ghGetDb();
+                const db = await ghGetDb(true);
                 localStorage.setItem('gh_token', tok);
                 await loadFromDb(db);
                 showConnect(false);
+                startPolling();
             } catch (e) {
                 GH_TOKEN = prev;
                 setGhStatus('تعذّر الربط: ' + e.message, true);
             }
+        }
+
+        function startPolling() {
+            if (pollTimer) return;
+            const ms = (SERVER_DB === false && !GH_TOKEN) ? 120000 : 7000;
+            pollTimer = setInterval(poll, ms);
+            document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+            window.addEventListener('focus', poll);
         }
 
         async function bootstrap() {
@@ -1806,23 +1899,41 @@
                 }
             } catch (e) {}
             const brandLogo = document.querySelector('.brand-logo');
-            if (brandLogo) document.getElementById('login-logo').src = brandLogo.src;
-            if (!GH_TOKEN) {
-                showConnect(true);
-                setGhStatus('للربط بالنظام، الصق رمز الوصول (Token) مرة واحدة على هذا الجهاز.', false);
-                return;
+            if (brandLogo) {
+                const lg = document.getElementById('login-logo');
+                if (lg) lg.src = brandLogo.src;
             }
+            // always try server first
             showConnect(false);
             setGhStatus('جارٍ التحميل...', false);
             try {
-                const db = await ghGetDb();
+                const db = await ghGetDb(true);
+                if (!db) throw new Error('لم يتم استلام بيانات قاعدة البيانات');
                 await loadFromDb(db);
-                setInterval(poll, 7000);
-                document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
-                window.addEventListener('focus', poll);
+                startPolling();
+                return;
             } catch (e) {
-                showConnect(true);
-                setGhStatus('تعذّر الاتصال بـ GitHub: ' + e.message + ' — تأكد من صحة الرمز.', true);
+                // if server is configured but failed, don't show token screen
+                if (SERVER_DB !== false) {
+                    // retry once
+                    try {
+                        await new Promise(r=>setTimeout(r,1000));
+                        const db2 = await ghGetDb(true);
+                        if (db2) { await loadFromDb(db2); startPolling(); return; }
+                    } catch(e2){}
+                }
+                if (SERVER_DB === false && !GH_TOKEN) {
+                    showConnect(true);
+                    setGhStatus('خدمة قاعدة البيانات غير مهيأة على الخادم — تواصل مع مدير النظام.', true);
+                } else if (GH_TOKEN) {
+                    showConnect(true);
+                    setGhStatus('تعذّر الاتصال بقاعدة البيانات: ' + e.message, true);
+                } else {
+                    // try again silently, don't block UI
+                    showConnect(false);
+                    setGhStatus('جارٍ إعادة المحاولة...', false);
+                    setTimeout(function(){ bootstrap(); }, 2000);
+                }
             }
         }
 

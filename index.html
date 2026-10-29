@@ -1675,7 +1675,7 @@
             const payload = JSON.stringify(db);
             markPushed(db);
 
-            if (SERVER_DB !== false) {
+            if (SERVER_DB !== false && SERVER_PUSH !== false) {
                 try {
                     const pr = await fetchT(API_DB, {
                         method: 'POST',
@@ -1787,7 +1787,7 @@
             syncing = true;
             setSyncStatus('saving', 'جارٍ الحفظ...');
             try {
-                let attempt = 0, done = false;
+                let attempt = 0, done = false, conflicts = 0;
                 while (attempt < 8 && !done) {
                     attempt++;
                     const patch = buildPatch();
@@ -1821,12 +1821,19 @@
                                 break;
                             }
                             if (res.conflict) {
+                                conflicts++;
                                 setSyncStatus('saving', 'تحديث متعارض — جارٍ الدمج...');
-                                await sleep(250 + Math.random() * 400);
+                                await sleep(300 + Math.random() * 500);
                                 try {
                                     const fresh = await ghGetDb(true);
                                     if (fresh) applyRemote(fresh);
                                 } catch (e) {}
+                                // خدمة الخادم غير متوافقة (تعارض متكرر): الحفظ مباشرة في GitHub
+                                if (conflicts >= 3) {
+                                    console.warn('تعارض متكرر من خدمة الخادم — التحويل إلى الحفظ المباشر');
+                                    SERVER_PUSH = false;
+                                    if (!GH_TOKEN) SERVER_DB = false;
+                                }
                                 continue;
                             }
                             if (res.unsupported) {

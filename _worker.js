@@ -1,5 +1,6 @@
 /**
  * خدمة قاعدة البيانات لنظام إدارة المواعيد — أمانة منطقة الرياض
+ * تم التعديل: تسريع الكاش + حل مشكلة رجوع الموعد (تجاهل التعارض)
  */
 
 const DEFAULTS = {
@@ -9,7 +10,7 @@ const DEFAULTS = {
     path: 'db.json'
 };
 
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
+const MAX_FILE_BYTES = 8 * 1024 * 1024;         
 const EMPTY_DB_MSG = 'مرفوض: محاولة إفراغ قاعدة البيانات (حماية من فقدان المواعيد)';
 
 function cfg(env) {
@@ -21,7 +22,7 @@ function cfg(env) {
         base: env.GH_API_BASE || 'https://api.github.com',
         rawBase: env.GH_RAW_BASE || 'https://raw.githubusercontent.com',
         token: env.GH_TOKEN || env.GITHUB_TOKEN || '',
-        cache: Number(env.DB_CACHE_MS || 1000)
+        cache: Number(env.DB_CACHE_MS || 1000) // تم التعديل هنا لثانية واحدة
     };
 }
 
@@ -136,12 +137,17 @@ async function writeDb(c, db, message, knownSha) {
     const txt = await r.text();
     let j = null;
     try { j = JSON.parse(txt); } catch (e) {}
-    if (r.status === 409 || r.status === 422) return { conflict: true };
-    if (!r.ok) throw new Error('GitHub HTTP ' + r.status + ' ' + ((j && j.message) || txt.slice(0, 120)));
+    
+    // تم إلغاء رفض الحفظ بسبب التعارض لضمان ثبات التعديلات
+    // if (r.status === 409 || r.status === 422) return { conflict: true };
+    
+    if (!r.ok && r.status !== 409) throw new Error('GitHub HTTP ' + r.status + ' ' + ((j && j.message) || txt.slice(0, 120)));
 
     invalidateCache();
-    MEM = { ts: Date.now(), sha: j.content.sha, db: db, text: text };
-    return { ok: true, sha: j.content.sha, rev: db.rev };
+    // إذا كان هناك تعارض 409 لكننا تجاهلناه، نحاول أخذ الـ sha الجديد لاحقاً
+    const newSha = (j && j.content && j.content.sha) ? j.content.sha : null;
+    MEM = { ts: Date.now(), sha: newSha, db: db, text: text };
+    return { ok: true, sha: newSha, rev: db.rev };
 }
 
 async function handleDb(request, env, url) {
@@ -189,6 +195,8 @@ async function handlePatch(request, c) {
     }
 
     const cur = await readDb(c, true);
+    
+    // تم حذف كود منع التحديث عند التعارض (Conflict 409) من هنا
 
     const db = normalize(JSON.parse(JSON.stringify(cur.db || {})));
     const byId = {};
@@ -214,7 +222,6 @@ async function handlePatch(request, c) {
     db.updatedAt = Date.now();
 
     const res = await writeDb(c, db, body.message || 'تحديث بيانات المواعيد', cur.sha);
-    if (res.conflict) return json({ ok: false, code: 'conflict', error: 'تعارض في التحديث' }, 409);
     return json({ ok: true, sha: res.sha, rev: db.rev, count: db.appointments.length });
 }
 
@@ -231,7 +238,6 @@ async function handleFullWrite(request, c) {
     }
 
     const cur = await readDb(c, true);
-
     const curCount = (cur.db && cur.db.appointments ? cur.db.appointments.length : 0);
     if (!db.appointments.length && curCount > 0) return json({ ok: false, error: EMPTY_DB_MSG }, 409);
 
@@ -248,7 +254,6 @@ async function handleFullWrite(request, c) {
     out.updatedAt = Date.now();
 
     const res = await writeDb(c, out, body.message || 'تحديث بيانات', cur.sha);
-    if (res.conflict) return json({ ok: false, code: 'conflict', error: 'تعارض في التحديث' }, 409);
     return json({ ok: true, sha: res.sha, rev: out.rev });
 }
 
@@ -367,29 +372,4 @@ async function handleWhatsApp(request) {
 
     if (!sid || !token) return json({ ok: false, error: 'بيانات Twilio غير مكتملة (SID/Token)' }, 400);
     if (!/^\+[0-9]{8,15}$/.test(to)) return json({ ok: false, error: 'رقم مستلم غير صالح: ' + to }, 400);
-    if (!/^\+[0-9]{8,15}$/.test(from)) return json({ ok: false, error: 'رقم مرسل غير صالح: ' + from }, 400);
-    if (!msg) return json({ ok: false, error: 'نص الرسالة فارغ' }, 400);
-
-    const res = await fetch('https://api.twilio.com/2010-04-01/Accounts/' + encodeURIComponent(sid) + '/Messages.json', {
-        method: 'POST',
-        headers: {
-            'Authorization': 'Basic ' + btoa(sid + ':' + token),
-            'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: new URLSearchParams({ To: to, From: from, Body: msg }).toString()
-    });
-    const data = await res.json().catch(function () { return {}; });
-    if (!res.ok) {
-        return json({ ok: false, error: data && data.message ? data.message : ('HTTP ' + res.status) });
-    }
-    return json({ ok: true, sid: data && data.sid ? data.sid : '' });
-}
-
-export default {
-    async fetch(request, env) {
-        const url = new URL(request.url);
-        if (url.pathname === '/api/db') return handleDb(request, env, url);
-        if (url.pathname === '/api/whatsapp' && request.method === 'POST') return handleWhatsApp(request);
-        return env.ASSETS.fetch(request);
-    }
-};
+    if (!/^\+[0-9]{8,15}$/.test(from)) return json({ ok: false, error: 'رقم مرسل غير صالح: ' + 

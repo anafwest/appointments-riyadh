@@ -1,6 +1,6 @@
 /**
  * خدمة قاعدة البيانات لنظام إدارة المواعيد — أمانة منطقة الرياض
- * إصدار معالجة التضارب التلقائي والإعادة الذكية (Auto-Retry on SHA Mismatch)
+ * نظام الحفظ الذكي الذاتي (Auto-Retry & Fresh Fetch)
  */
 
 const DEFAULTS = {
@@ -10,8 +10,7 @@ const DEFAULTS = {
     path: 'db.json'
 };
 
-const MAX_FILE_BYTES = 8 * 1024 * 1024;         
-const EMPTY_DB_MSG = 'مرفوض: محاولة إفراغ قاعدة البيانات (حماية من فقدان المواعيد)';
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 function cfg(env) {
     return {
@@ -22,7 +21,7 @@ function cfg(env) {
         base: env.GH_API_BASE || 'https://api.github.com',
         rawBase: env.GH_RAW_BASE || 'https://raw.githubusercontent.com',
         token: env.GH_TOKEN || env.GITHUB_TOKEN || '',
-        cache: Number(env.DB_CACHE_MS || 500)
+        cache: 0 // إلغاء الكاش تماماً لضمان جلب أحدث البيانات فوراً
     };
 }
 
@@ -31,7 +30,7 @@ function json(obj, status) {
         status: status || 200,
         headers: {
             'Content-Type': 'application/json; charset=utf-8',
-            'Cache-Control': 'no-store'
+            'Cache-Control': 'no-store, no-cache, must-revalidate'
         }
     });
 }
@@ -63,10 +62,6 @@ function ghHeaders(c, extra) {
     return h;
 }
 
-function rawUrl(c, path) {
-    return c.rawBase + '/' + c.owner + '/' + c.repo + '/' + c.branch + '/' + encodeURI(path);
-}
-
 function contentsUrl(c, path) {
     return c.base + '/repos/' + c.owner + '/' + c.repo + '/contents/' + encodeURI(path);
 }
@@ -83,270 +78,106 @@ function normalize(db) {
     return db;
 }
 
-let MEM = { ts: 0, sha: null, db: null, text: '' };
-
-async function readDb(c, force) {
-    const now = Date.now();
-    if (!force && MEM.db && (now - MEM.ts) < c.cache) return MEM;
-
-    const r = await fetch(contentsUrl(c, c.path) + '?ref=' + encodeURIComponent(c.branch) + '&t=' + now, {
-        headers: ghHeaders(c, { 'Accept': 'application/vnd.github+json' }),
+// جلب أحدث نسخة مباشرة من GitHub بدون كاش
+async function getFreshDbFromGithub(c) {
+    const r = await fetch(contentsUrl(c, c.path) + '?ref=' + encodeURIComponent(c.branch) + '&t=' + Date.now(), {
+        headers: ghHeaders(c),
         cf: { cacheTtl: 0 }
     });
-
-    if (r.status === 404) return { ts: now, sha: null, db: normalize({ rev: 0 }), text: '', missing: true };
-    if (!r.ok) {
-        const msg = await r.text().catch(function () { return ''; });
-        throw new Error('GitHub HTTP ' + r.status + ' ' + msg.slice(0, 120));
-    }
+    if (!r.ok) throw new Error('فشل جلب البيانات من GitHub: ' + r.status);
     const j = await r.json();
-    const sha = j.sha;
-    let text = '';
-    if (j.content && j.encoding === 'base64') {
-        text = b64ToUtf8(j.content);
-    } else if (j.download_url) {
-        const rr = await fetch(j.download_url + '?t=' + now, { headers: ghHeaders(c), cf: { cacheTtl: 0 } });
-        if (!rr.ok) throw new Error('GitHub raw HTTP ' + rr.status);
-        text = await rr.text();
-    }
-    let db;
-    try { db = JSON.parse(text); } catch (e) {
-        throw new Error('ملف قاعدة البيانات غير صالح (JSON)');
-    }
-    MEM = { ts: now, sha: sha, db: normalize(db), text: text };
-    return MEM;
+    const text = b64ToUtf8(j.content);
+    return { sha: j.sha, db: normalize(JSON.parse(text)) };
 }
 
-function invalidateCache() { MEM = { ts: 0, sha: null, db: null, text: '' }; }
+// حفظ ذكي يعيد المحاولة تلقائياً عند وجود أي تعارض
+async function saveWithAutoRetry(c, modifyFn, message) {
+    for (let attempt = 0; attempt < 5; attempt++) {
+        try {
+            const fresh = await getFreshDbFromGithub(c);
+            const updatedDb = modifyFn(fresh.db);
+            updatedDb.rev = (Number(updatedDb.rev) || 0) + 1;
+            updatedDb.updatedAt = Date.now();
 
-// 🔄 دالة حفظ ذكية تعيد المحاولة تلقائياً عند وجود تضارب SHA في GitHub
-async function writeDbWithRetry(c, updateFn, message) {
-    let lastError = null;
-    
-    for (let attempt = 0; attempt < 3; attempt++) {
-        const cur = await readDb(c, true);
-        const db = updateFn(normalize(JSON.parse(JSON.stringify(cur.db || {}))));
-        
-        const text = JSON.stringify(db);
-        const body = {
-            message: message || 'تحديث بيانات المواعيد',
-            content: utf8ToB64(text),
-            branch: c.branch
-        };
-        if (cur.sha) body.sha = cur.sha;
+            const text = JSON.stringify(updatedDb);
+            const body = {
+                message: message || 'تحديث المواعيد',
+                content: utf8ToB64(text),
+                branch: c.branch,
+                sha: fresh.sha
+            };
 
-        const r = await fetch(contentsUrl(c, c.path), {
-            method: 'PUT',
-            headers: ghHeaders(c, { 'Content-Type': 'application/json' }),
-            body: JSON.stringify(body)
-        });
+            const r = await fetch(contentsUrl(c, c.path), {
+                method: 'PUT',
+                headers: ghHeaders(c, { 'Content-Type': 'application/json' }),
+                body: JSON.stringify(body)
+            });
 
-        if (r.ok) {
-            const j = await r.json();
-            invalidateCache();
-            MEM = { ts: Date.now(), sha: j.content.sha, db: db, text: text };
-            return { ok: true, sha: j.content.sha, rev: db.rev };
-        }
-
-        const txt = await r.text();
-        lastError = 'GitHub HTTP ' + r.status + ' ' + txt.slice(0, 120);
-
-        // إذا كان الخطأ بسبب تعارض SHA 409/422 ننتظر قليلاً ونعيد الجلب والحفظ تلقائياً
-        if (r.status === 409 || r.status === 422) {
-            await new Promise(res => setTimeout(res, 300));
-            continue;
-        } else {
-            break;
-        }
-    }
-    throw new Error(lastError || 'فشل الحفظ بعد محاولات متعددة');
-}
-
-async function handleDb(request, env, url) {
-    const c = cfg(env);
-    const op = url.searchParams.get('op') || '';
-    const method = request.method.toUpperCase();
-
-    try {
-        if (method === 'GET' || method === 'HEAD') {
-            if (op === 'file') return await serveFile(c, url);
-            if (op === 'info') {
-                const cur = await readDb(c, true);
-                return json({ ok: true, sha: cur.sha, rev: (cur.db && cur.db.rev) || 0, bytes: (cur.text || '').length, token: !!c.token });
+            if (r.ok) {
+                const j = await r.json();
+                return { ok: true, sha: j.content.sha, rev: updatedDb.rev, db: updatedDb };
             }
-            const cur = await readDb(c, url.searchParams.has('full'));
-            const rev = (cur.db && cur.db.rev) || 0;
-            return json({ ok: true, sha: cur.sha || '', rev: rev, db: cur.db });
+
+            // إذا حدث تعارض ينتظر 200 ملي ثانية ويعيد المحاولة
+            await new Promise(res => setTimeout(res, 200));
+        } catch (e) {
+            if (attempt === 4) throw e;
+            await new Promise(res => setTimeout(res, 200));
         }
-
-        if (method !== 'POST') return json({ ok: false, error: 'طريقة غير مدعومة' }, 405);
-
-        if (op === 'file') return await uploadFile(request, c);
-        if (op === 'patch') return await handlePatch(request, c);
-        return await handleFullWrite(request, c);
-    } catch (e) {
-        return json({ ok: false, error: (e && e.message) ? e.message : 'خطأ غير معروف' }, 500);
     }
-}
-
-async function handlePatch(request, c) {
-    if (!c.token) return json({ ok: false, code: 'no-token', error: 'GH_TOKEN غير مهيأ على الخادم' }, 503);
-
-    let body = null;
-    try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'طلب غير صالح' }, 400); }
-    if (!body || typeof body !== 'object') return json({ ok: false, error: 'طلب غير صالح' }, 400);
-
-    const upserts = Array.isArray(body.upserts) ? body.upserts : [];
-    const deletes = Array.isArray(body.deletes) ? body.deletes : [];
-
-    const res = await writeDbWithRetry(c, function(db) {
-        const byId = {};
-        db.appointments.forEach(function (a) { if (a && a.id != null) byId[key(a.id)] = a; });
-
-        upserts.forEach(function (a) {
-            if (!a || a.id == null) return;
-            byId[key(a.id)] = a;
-        });
-        deletes.forEach(function (id) { delete byId[key(id)]; });
-
-        db.appointments = Object.keys(byId).map(function (k) { return byId[k]; });
-        if (Array.isArray(body.users)) db.users = body.users;
-        if (Array.isArray(body.departments)) db.departments = body.departments;
-        if (body.meta && typeof body.meta === 'object') db.meta = Object.assign({}, db.meta || {}, body.meta);
-        if (body.wa && typeof body.wa === 'object') db.wa = body.wa;
-        db.rev = (Number(db.rev) || 0) + 1;
-        db.updatedAt = Date.now();
-        return db;
-    }, body.message || 'تحديث بيانات المواعيد');
-
-    return json({ ok: true, sha: res.sha, rev: res.rev });
-}
-
-async function handleFullWrite(request, c) {
-    if (!c.token) return json({ ok: false, code: 'no-token', error: 'GH_TOKEN غير مهيأ على الخادم' }, 503);
-
-    let body = null;
-    try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'طلب غير صالح' }, 400); }
-
-    const inputDb = body && body.db;
-    if (!inputDb || typeof inputDb !== 'object' || !Array.isArray(inputDb.appointments)) {
-        return json({ ok: false, error: 'بنية بيانات غير صالحة' }, 400);
-    }
-
-    const res = await writeDbWithRetry(c, function(curDb) {
-        const out = normalize(inputDb);
-        out.rev = (Number(curDb.rev) || 0) + 1;
-        out.updatedAt = Date.now();
-        return out;
-    }, body.message || 'تحديث كامل للبيانات');
-
-    return json({ ok: true, sha: res.sha, rev: res.rev });
-}
-
-const MIME_EXT = {
-    'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp',
-    'image/bmp': 'bmp', 'image/heic': 'heic', 'image/heif': 'heif',
-    'application/pdf': 'pdf', 'text/plain': 'txt',
-    'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-    'application/vnd.ms-excel': 'xls',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx'
-};
-
-function safeExt(name, type) {
-    const t = String(type || '').toLowerCase();
-    if (MIME_EXT[t]) return MIME_EXT[t];
-    const m = String(name || '').match(/\.([A-Za-z0-9]{1,6})$/);
-    return m ? m[1].toLowerCase() : 'bin';
-}
-
-function shortHash(str) {
-    let h = 2166136261;
-    for (let i = 0; i < str.length; i++) {
-        h ^= str.charCodeAt(i);
-        h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0).toString(16);
-}
-
-async function uploadFile(request, c) {
-    if (!c.token) return json({ ok: false, code: 'no-token', error: 'GH_TOKEN غير مهيأ على الخادم' }, 503);
-
-    let form = null;
-    try { form = await request.formData(); } catch (e) { return json({ ok: false, error: 'يجب إرسال الملف بصيغة multipart' }, 400); }
-    const file = form.get('file');
-    if (!file || typeof file === 'string') return json({ ok: false, error: 'لا يوجد ملف في الطلب' }, 400);
-
-    const size = file.size || 0;
-    if (!size) return json({ ok: false, error: 'الملف فارغ' }, 400);
-    if (size > MAX_FILE_BYTES) return json({ ok: false, error: 'حجم الملف يتجاوز ' + Math.round(MAX_FILE_BYTES / 1048576) + ' ميجابايت' }, 413);
-
-    const buf = new Uint8Array(await file.arrayBuffer());
-    let bin = '';
-    const chunk = 0x8000;
-    for (let i = 0; i < buf.length; i += chunk) {
-        bin += String.fromCharCode.apply(null, buf.subarray(i, i + chunk));
-    }
-    const content = btoa(bin);
-
-    const id = String(form.get('appointmentId') || 'x').replace(/[^0-9A-Za-z_-]/g, '').slice(0, 40) || 'x';
-    const ext = safeExt(file.name, file.type);
-    const fname = id + '-' + Date.now().toString(36) + '-' + shortHash(file.name + size) + '.' + ext;
-    const path = 'attachments/' + fname;
-
-    const r = await fetch(contentsUrl(c, path), {
-        method: 'PUT',
-        headers: ghHeaders(c, { 'Content-Type': 'application/json' }),
-        body: JSON.stringify({
-            message: 'مرفق جديد: ' + (file.name || fname),
-            content: content,
-            branch: c.branch
-        })
-    });
-    const txt = await r.text();
-    let j = null;
-    try { j = JSON.parse(txt); } catch (e) {}
-    if (!r.ok) {
-        return json({ ok: false, error: 'تعذّر رفع الملف: ' + ((j && j.message) || ('HTTP ' + r.status)) }, 502);
-    }
-
-    return json({
-        ok: true,
-        path: path,
-        sha: j.content && j.content.sha ? j.content.sha : '',
-        size: size,
-        type: file.type || '',
-        url: rawUrl(c, path)
-    });
-}
-
-async function serveFile(c, url) {
-    const p = String(url.searchParams.get('p') || '');
-    if (!p || p.indexOf('..') !== -1 || p.indexOf('attachments/') !== 0) {
-        return json({ ok: false, error: 'مسار غير صالح' }, 400);
-    }
-    const r = await fetch(rawUrl(c, p) + (c.rawBase.indexOf('raw.githubusercontent.com') !== -1 ? '?t=' + Date.now() : ''), {
-        headers: { 'User-Agent': 'appointments-riyadh-worker' },
-        cf: { cacheTtl: 86400, cacheEverything: true }
-    });
-    if (!r.ok) return json({ ok: false, error: 'الملف غير موجود' }, r.status === 404 ? 404 : 502);
-    const ext = (p.match(/\.([A-Za-z0-9]{1,6})$/) || [])[1] || '';
-    const invert = {};
-    Object.keys(MIME_EXT).forEach(function (k) { invert[MIME_EXT[k]] = k; });
-    let ctype = r.headers.get('Content-Type') || '';
-    if (!ctype || ctype.indexOf('octet-stream') !== -1) ctype = invert[ext.toLowerCase()] || 'application/octet-stream';
-
-    const headers = new Headers();
-    headers.set('Content-Type', ctype);
-    headers.set('Cache-Control', 'public, max-age=86400');
-    headers.set('Content-Disposition', 'inline');
-    return new Response(r.body, { status: 200, headers: headers });
+    throw new Error('فشل الحفظ بعد عدة محاولات');
 }
 
 export default {
     async fetch(request, env) {
+        const c = cfg(env);
         const url = new URL(request.url);
-        if (url.pathname === '/api/db') return handleDb(request, env, url);
-        return env.ASSETS.fetch(request);
+        const method = request.method.toUpperCase();
+
+        if (url.pathname !== '/api/db') {
+            return env.ASSETS.fetch(request);
+        }
+
+        try {
+            if (method === 'GET' || method === 'HEAD') {
+                const fresh = await getFreshDbFromGithub(c);
+                return json({ ok: true, sha: fresh.sha, rev: fresh.db.rev, db: fresh.db });
+            }
+
+            if (method === 'POST') {
+                let body = {};
+                try { body = await request.json(); } catch(e) {}
+                const op = url.searchParams.get('op') || '';
+
+                if (op === 'patch') {
+                    const res = await saveWithAutoRetry(c, (db) => {
+                        const upserts = Array.isArray(body.upserts) ? body.upserts : [];
+                        const deletes = Array.isArray(body.deletes) ? body.deletes : [];
+                        const byId = {};
+                        db.appointments.forEach(a => { if (a && a.id != null) byId[key(a.id)] = a; });
+                        upserts.forEach(a => { if (a && a.id != null) byId[key(a.id)] = a; });
+                        deletes.forEach(id => { delete byId[key(id)]; });
+
+                        db.appointments = Object.values(byId);
+                        if (Array.isArray(body.users)) db.users = body.users;
+                        if (Array.isArray(body.departments)) db.departments = body.departments;
+                        if (body.meta) db.meta = Object.assign({}, db.meta || {}, body.meta);
+                        return db;
+                    }, body.message || 'تحديث جزئي للمواعيد');
+
+                    return json({ ok: true, sha: res.sha, rev: res.rev });
+                } else {
+                    const inputDb = body.db || {};
+                    const res = await saveWithAutoRetry(c, (db) => {
+                        const out = normalize(inputDb);
+                        return out;
+                    }, body.message || 'تحديث كامل للمواعيد');
+
+                    return json({ ok: true, sha: res.sha, rev: res.rev });
+                }
+            }
+        } catch (e) {
+            return json({ ok: false, error: e.message }, 500);
+        }
     }
 };

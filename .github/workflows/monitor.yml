@@ -1,0 +1,43 @@
+name: فحص دائم — صفحة المواعيد
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # كل30 دقيقة —24/7
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 🔍 تشغيل الفاحص
+        id: check
+        run: bash monitor/check.sh
+
+      - name: 🚨 فتح تنبيه عند الفشل
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -u
+          REPO="${{ github.repository }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          OPEN=$(gh api "repos/$REPO/issues?labels=monitor-alert&state=open" --jq 'length' || echo 0)
+          if [ "$OPEN" != "0" ] && [ "$OPEN" != "null" ]; then
+            NUM=$(gh api "repos/$REPO/issues?labels=monitor-alert&state=open" --jq '.[0].number')
+            gh api -X POST "repos/$REPO/issues/$NUM/comments" -f body="فشل الفحص مجددًا — $RUN_URL"
+          else
+            gh label create "monitor-alert" --repo "$REPO" --color "d73a4a" --description "تنبيهات المراقب الدائم" --force || true
+            gh issue create --repo "$REPO" \
+              --title "⚠️ تنبيه مراقب: فشل فحص صفحة المواعيد" \
+              --label "monitor-alert" \
+              --body "فشل الفحص الدائم — رابط التنفيذ: $RUN_URL
+
+          افتح الرابط لعرض تفاصيل الخطأ، ثم تواصل مع المشرف للمصلحة."
+          fi

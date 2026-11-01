@@ -56,11 +56,20 @@ if command -v python3 >/dev/null 2>&1; then
     "https://api.github.com/repos/$REPO/contents/db.json?ref=main" -o /tmp/mon-dbmeta.json -w '%{http_code}' 2>/dev/null) || dbres=000
   if [ "$dbres" = "200" ]; then
     out=$(python3 - <<'PY'
-import json, base64
+import json, base64, urllib.request
 try:
     m = json.load(open('/tmp/mon-dbmeta.json'))
-    db = json.loads(base64.b64decode(m['content']))
+    content = m.get('content') or ''
+    if not content:
+        # db.json >1MB → Contents API تعيد content فارغًا؛ نقرأ من raw
+        url = m.get('download_url') or 'https://raw.githubusercontent.com/anafwest/appointments-riyadh/main/db.json'
+        req = urllib.request.Request(url, headers={'User-Agent': 'monitor-check'})
+        db = json.loads(urllib.request.urlopen(req, timeout=30).read().decode('utf-8', 'replace'))
+    else:
+        db = json.loads(base64.b64decode(content))
     errs = []
+    sz = m.get('size') or 0
+    if sz > 900 * 1024: errs.append('db.json كبير جداً (%d بايت) — اقترب من حد 1MB' % sz)
     if not isinstance(db.get('appointments'), list): errs.append('appointments ليست قائمة')
     elif len(db['appointments']) == 0: errs.append('لا يوجد مواعيد إطلاقًا')
     if not isinstance(db.get('users'), list): errs.append('users ليست قائمة')

@@ -2044,11 +2044,6 @@
         }
 
         function doLogin() {
-            if (!GH_TOKEN) {
-                document.getElementById('login-error').textContent = 'اربط النظام بـ GitHub أولاً';
-                showConnect(true);
-                return;
-            }
             const u = document.getElementById('login-user').value.trim();
             const p = document.getElementById('login-pass').value.trim();
             const found = USERS.find(x => x.user === u && x.pass === p);

@@ -3945,5 +3945,535 @@ ${doc.innerHTML}
         document.getElementById('year').textContent = new Date().getFullYear();
         bootstrap();
     </script>
+<!--
+  ══════════════════════════════════════════════════════════════════════════════
+  إصلاح المرفقات — كتلة مستقلة (معاينة + زيادة الحجم + رفع موثوق)
+  النظام: أمانة منطقة الرياض — إدارة المواعيد   |   النسخة: v2 (main @ e82d09c)
+  ──────────────────────────────────────────────────────────────────────────────
+  التركيب: تُلصق كما هي قبل </body> مباشرة (بعد السكربت الرئيسي).
+  • لا تُعدّل أي سطر من الكود القائم، ولا تمسّ قاعدة البيانات أو شكلها.
+  • للتراجع: احذف هذه الكتلة فقط.
+  • تعمل مع المرفقات القديمة (path) والجديدة (data) في وقت واحد.
+  ══════════════════════════════════════════════════════════════════════════════
+-->
+<style>
+  /* ── شارة حجم/مصدر المرفق + تلميح الرفع ── */
+  .file-row .file-tag { font-size: 11px; color: var(--muted, #9cb8ac); margin-inline-start: 6px; white-space: nowrap; }
+  .files-hint { font-size: 12px; color: var(--muted, #9cb8ac); flex: 1 1 190px; line-height: 1.6; }
+  .files-hint.busy { color: #f0c36d; }
+  .files-hint.done { color: #5fd3a0; }
+  .files-hint.err { color: #ff8a8a; }
+
+  /* ── نافذة المعاينة الداخلية (بدل النافذة المنبثقة) ── */
+  #pv-overlay { position: fixed; inset: 0; z-index: 99999; display: none; flex-direction: column; background: rgba(0, 0, 0, .84); }
+  #pv-overlay.open { display: flex; }
+  #pv-overlay .pv-bar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    padding: 8px 12px; background: #06301f; color: #fff;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, .5);
+  }
+  #pv-overlay .pv-title {
+    flex: 1 1 140px; min-width: 0; font-size: 13px; font-weight: 600;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  #pv-overlay .pv-btn {
+    border: 1px solid rgba(255, 255, 255, .35); background: rgba(255, 255, 255, .10);
+    color: #fff; border-radius: 8px; padding: 7px 12px; font: inherit; font-size: 12px;
+    cursor: pointer; white-space: nowrap;
+  }
+  #pv-overlay .pv-btn:hover { background: rgba(255, 255, 255, .22); }
+  #pv-overlay .pv-btn:disabled { opacity: .45; cursor: default; }
+  #pv-overlay .pv-body {
+    flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center;
+    background: #1b1b1b;
+  }
+  #pv-overlay .pv-body img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  #pv-overlay .pv-body iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+  #pv-overlay .pv-body video, #pv-overlay .pv-body audio { max-width: 98%; max-height: 96%; }
+  #pv-overlay .pv-body pre {
+    margin: 0; padding: 18px; width: 100%; height: 100%; overflow: auto;
+    color: #e8f0ec; background: transparent; white-space: pre-wrap; direction: rtl;
+    font-size: 13px; line-height: 1.9; text-align: start;
+  }
+  #pv-overlay .pv-msg { color: #eee; font-size: 14px; padding: 24px; text-align: center; line-height: 2.1; max-width: 680px; }
+  #pv-overlay .pv-msg a.pv-btn { display: inline-block; margin-top: 12px; text-decoration: none; }
+  #pv-overlay .pv-spin {
+    width: 34px; height: 34px; border-radius: 50%; margin: 0 auto 14px;
+    border: 3px solid rgba(255, 255, 255, .25); border-top-color: #5fd3a0;
+    animation: pvspin .8s linear infinite;
+  }
+  @keyframes pvspin { to { transform: rotate(360deg); } }
+  @media (max-width: 560px) {
+    #pv-overlay .pv-title { order: 3; flex-basis: 100%; }
+    #pv-overlay .pv-btn { padding: 8px 10px; }
+  }
+</style>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════════
+   إصلاح المرفقات — لا مكتبات خارجية، ولا تغيير في البيانات.
+
+   ما يعالجه:
+   1) زر المعاينة: المرفقات القديمة مخزّنة بمسار (path) والكود القديم يقرأ data فقط
+      → فشل مؤكد + نافذة منبثقة محجوبة. الحل: نافذة داخلية تقرأ الاثنين.
+   2) حجم المرفق: 2 ميجابايت → 20 ميجابايت، مع ضغط الصور الكبيرة.
+   3) عند تعذّر الرفع: لا يُحقن ملف كبير داخل قاعدة البيانات (كان يوقف الحفظ للجميع).
+   ══════════════════════════════════════════════════════════════════════════════ */
+(function () {
+  'use strict';
+
+  var LIMIT_MB = 20;         // ← الحد الجديد لكل مرفق
+  var INLINE_MAX_MB = 1.2;   // أقصى حجم يُسمح بحفظه داخل قاعدة البيانات عند تعذّر الرفع
+  var CACHE = {};
+  var STATE = { url: null, name: '' };
+
+  /* ─────────────────────────── أدوات مساعدة ─────────────────────────── */
+
+  // قراءة المتغيّرات العامة بأمان (بعضها معرّف بـ let فليس على window)
+  function G(name, fallback) {
+    try {
+      var v = eval('typeof ' + name + ' !== "undefined" ? ' + name + ' : undefined');
+      return v === undefined ? fallback : v;
+    } catch (e) { return fallback; }
+  }
+
+  var OWNER = G('GH_OWNER', 'anafwest');
+  var REPO = G('GH_REPO', 'appointments-riyadh');
+  var BRANCH = G('GH_BRANCH', 'main');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function rawUrl(path) {
+    return 'https://raw.githubusercontent.com/' + OWNER + '/' + REPO + '/' + BRANCH + '/' +
+      String(path).split('/').map(encodeURIComponent).join('/');
+  }
+
+  function kindOf(f) {
+    var t = String((f && f.type) || '');
+    var n = String((f && (f.name || f.path)) || '');
+    if (t.indexOf('image/') === 0 || /\.(jpe?g|png|gif|webp|bmp|svg)$/i.test(n)) return 'image';
+    if (t.indexOf('pdf') !== -1 || /\.pdf$/i.test(n)) return 'pdf';
+    if (t.indexOf('video/') === 0 || /\.(mp4|webm|ogg|mov|m4v)$/i.test(n)) return 'video';
+    if (t.indexOf('audio/') === 0 || /\.(mp3|wav|m4a|aac|oga)$/i.test(n)) return 'audio';
+    if (t.indexOf('text/') === 0 || /\.(txt|csv|json|md|log)$/i.test(n)) return 'text';
+    return 'other';
+  }
+
+  function humanSize(b) {
+    var n = Number(b) || 0;
+    if (n >= 1048576) return (Math.round(n / 1048576 * 10) / 10) + ' م.ب';
+    if (n >= 1024) return Math.round(n / 1024) + ' ك.ب';
+    return n + ' بايت';
+  }
+
+  function toBlob(dataUrl) {
+    var parts = String(dataUrl).split(',');
+    var mime = (parts[0].match(/:(.*?);/) || [])[1] || 'application/octet-stream';
+    var bin = atob(parts[1] || '');
+    var arr = new Uint8Array(bin.length);
+    for (var k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+    return new Blob([arr], { type: mime });
+  }
+
+  function readAsDataURL(file) {
+    return new Promise(function (resolve, reject) {
+      var rd = new FileReader();
+      rd.onload = function () { resolve(rd.result); };
+      rd.onerror = function () { reject(new Error('read-failed')); };
+      rd.readAsDataURL(file);
+    });
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var rd = new FileReader();
+      rd.onload = function () { resolve(rd.result); };
+      rd.onerror = function () { reject(new Error('read-failed')); };
+      rd.readAsDataURL(blob);
+    });
+  }
+
+  // المرفق إمّا data (داخل قاعدة البيانات) أو path (مرفوع على المستودع)
+  function resolveData(f) {
+    if (!f) return Promise.resolve('');
+    if (f.data) return Promise.resolve(f.data);
+    if (!f.path) return Promise.resolve('');
+    if (CACHE[f.path]) return Promise.resolve(CACHE[f.path]);
+    return fetch(rawUrl(f.path), { cache: 'force-cache' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then(blobToDataUrl)
+      .then(function (d) { CACHE[f.path] = d; return d; });
+  }
+
+  function ghPutFile(path, base64, message) {
+    var url = 'https://api.github.com/repos/' + OWNER + '/' + REPO + '/contents/' +
+      String(path).split('/').map(encodeURIComponent).join('/');
+    var token = G('GH_TOKEN', '') || localStorage.getItem('gh_token') || '';
+    var headers = { 'Content-Type': 'application/json', 'Accept': 'application/vnd.github+json' };
+    if (token) headers['Authorization'] = 'token ' + token;
+    return fetch(url, {
+      method: 'PUT',
+      headers: headers,
+      body: JSON.stringify({ message: message || 'إضافة مرفق', content: base64, branch: BRANCH })
+    }).then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    });
+  }
+
+  function currentAppointment() {
+    var list = G('appointments', []) || [];
+    var id = G('filesEditingId', null);
+    for (var k = 0; k < list.length; k++) if (list[k] && list[k].id === id) return list[k];
+    return null;
+  }
+
+  /* ──────────────────── نافذة المعاينة الداخلية ──────────────────── */
+
+  function overlay() {
+    var ov = document.getElementById('pv-overlay');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.id = 'pv-overlay';
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    ov.innerHTML =
+      '<div class="pv-bar">' +
+        '<button type="button" class="pv-btn" data-act="close">✕ إغلاق</button>' +
+        '<div class="pv-title" id="pv-title">مرفق</div>' +
+        '<button type="button" class="pv-btn" data-act="tab" disabled>↗ فتح في نافذة</button>' +
+        '<button type="button" class="pv-btn" data-act="print" disabled>🖨️ طباعة</button>' +
+        '<button type="button" class="pv-btn" data-act="download" disabled>⬇️ تحميل</button>' +
+      '</div>' +
+      '<div class="pv-body" id="pv-body"></div>';
+
+    ov.addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.pv-btn') : null;
+      if (!btn) { if (e.target === ov) closePv(); return; }
+      var act = btn.getAttribute('data-act');
+      if (act === 'close') closePv();
+      else if (act === 'tab') openTab();
+      else if (act === 'print') printPv();
+      else if (act === 'download') downloadPv();
+    });
+
+    document.body.appendChild(ov);
+    return ov;
+  }
+
+  function setBody(html) {
+    var b = document.getElementById('pv-body');
+    if (b) b.innerHTML = html;
+  }
+
+  function setButtons(on) {
+    var ov = document.getElementById('pv-overlay');
+    if (!ov) return;
+    ['tab', 'print', 'download'].forEach(function (a) {
+      var b = ov.querySelector('.pv-btn[data-act="' + a + '"]');
+      if (b) b.disabled = !on;
+    });
+  }
+
+  function closePv() {
+    var ov = document.getElementById('pv-overlay');
+    if (ov) ov.classList.remove('open');
+    if (STATE.url) { try { URL.revokeObjectURL(STATE.url); } catch (e) {} STATE.url = null; }
+    setBody('');
+  }
+
+  function openTab() {
+    if (!STATE.url) return;
+    var w = window.open(STATE.url, '_blank');
+    if (!w) alert('المتصفح منع فتح النافذة. اسمح بالنوافذ المنبثقة لهذا الموقع ثم أعد المحاولة.');
+  }
+
+  function printPv() {
+    if (!STATE.url) return;
+    var w = window.open(STATE.url, '_blank');
+    if (!w) { alert('اسمح بالنوافذ المنبثقة للطباعة.'); return; }
+    setTimeout(function () { try { w.print(); } catch (e) {} }, 800);
+  }
+
+  function downloadPv() {
+    if (!STATE.url) return;
+    var a = document.createElement('a');
+    a.href = STATE.url;
+    a.download = STATE.name || 'attachment';
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function showFallback(f, msg) {
+    setButtons(false);
+    var direct = f && f.path ? rawUrl(f.path) : '';
+    setBody('<div class="pv-msg">⚠️ ' + esc(msg) +
+      (direct ? '<br><a class="pv-btn" href="' + direct + '" target="_blank" rel="noopener">فتح الرابط المباشر للملف</a>' : '') +
+      '</div>');
+  }
+
+  /* ──────────────────────── المعاينة (النسخة الجديدة) ──────────────────────── */
+  function previewFileFixed(i) {
+    var a = currentAppointment();
+    var f = a && a.files && a.files[i];
+    if (!f) { alert('تعذّر العثور على المرفق — أغلق نافذة المرفقات وأعد فتحها ثم حاول مجددًا.'); return; }
+
+    overlay();
+    if (STATE.url) { try { URL.revokeObjectURL(STATE.url); } catch (e) {} STATE.url = null; }
+    STATE.name = f.name || 'مرفق';
+    document.getElementById('pv-title').textContent = STATE.name;
+    setButtons(false);
+    setBody('<div class="pv-msg"><div class="pv-spin"></div>جارٍ تحميل المرفق…</div>');
+    document.getElementById('pv-overlay').classList.add('open');
+
+    resolveData(f).then(function (dataUrl) {
+      if (!dataUrl) { showFallback(f, 'تعذّر تحميل الملف: لا توجد بيانات ولا مسار للملف.'); return; }
+
+      var blob;
+      try { blob = toBlob(dataUrl); } catch (e) { showFallback(f, 'الملف غير قابل للعرض داخل النظام.'); return; }
+
+      var mime = (String(dataUrl).match(/^data:([^;,]+)/) || [])[1] || '';
+      var kind = kindOf(f);
+      if (kind === 'other' && mime.indexOf('image/') === 0) kind = 'image';
+      if (kind === 'other' && mime.indexOf('pdf') !== -1) kind = 'pdf';
+      // GitHub يخدّم الملفات كـ application/octet-stream — نصحّح النوع بحسب الامتداد
+      if (!mime || mime === 'application/octet-stream') {
+        if (kind === 'pdf') blob = new Blob([blob], { type: 'application/pdf' });
+        else if (kind === 'image') blob = new Blob([blob], { type: 'image/jpeg' });
+        else if (kind === 'video') blob = new Blob([blob], { type: 'video/mp4' });
+        else if (kind === 'audio') blob = new Blob([blob], { type: 'audio/mpeg' });
+        else if (kind === 'text') blob = new Blob([blob], { type: 'text/plain;charset=utf-8' });
+      }
+
+      STATE.url = URL.createObjectURL(blob);
+      setButtons(true);
+      var nm = esc(STATE.name);
+
+      if (kind === 'image') setBody('<img src="' + STATE.url + '" alt="' + nm + '">');
+      else if (kind === 'pdf') setBody('<iframe src="' + STATE.url + '" title="' + nm + '"></iframe>');
+      else if (kind === 'video') setBody('<video src="' + STATE.url + '" controls playsinline></video>');
+      else if (kind === 'audio') setBody('<audio src="' + STATE.url + '" controls></audio>');
+      else if (kind === 'text') blob.text().then(function (t) { setBody('<pre>' + esc(t.slice(0, 200000)) + '</pre>'); });
+      else setBody('<div class="pv-msg">📄 هذا النوع لا يُعرض داخل النظام (مثل ملفات Word/Excel).<br>' +
+        'استخدم «تحميل» أو «فتح في نافذة».<br><span style="opacity:.75">' + nm + '</span></div>');
+    }).catch(function (e) {
+      console.warn('[attachments-fix] preview', e);
+      showFallback(f, 'تعذّر جلب الملف (' + (e && e.message ? e.message : 'خطأ غير معروف') + ').');
+    });
+  }
+
+  /* ─────────────────── الطباعة: تدعم data و path ─────────────────── */
+  function printFileFixed(i) {
+    var a = currentAppointment();
+    var f = a && a.files && a.files[i];
+    if (!f) return;
+
+    resolveData(f).then(function (dataUrl) {
+      if (!dataUrl) { alert('تعذّر جلب هذا الملف للطباعة.'); return; }
+      var blob = toBlob(dataUrl);
+      var kind = kindOf(f);
+      if (kind === 'pdf') blob = new Blob([blob], { type: 'application/pdf' });
+      else if (kind === 'image') blob = new Blob([blob], { type: blob.type || 'image/jpeg' });
+      var url = URL.createObjectURL(blob);
+      var win = window.open('', '_blank');
+      if (!win) { alert('اسمح بالنوافذ المنبثقة للطباعة.'); URL.revokeObjectURL(url); return; }
+      if (kind === 'image') {
+        win.document.write('<html dir="rtl"><head><meta charset="utf-8"><title>' + esc(f.name) +
+          '</title></head><body style="margin:0;text-align:center"><img src="' + url +
+          '" style="max-width:96vw;max-height:96vh"></body></html>');
+        win.document.close();
+        win.onload = function () { try { win.focus(); win.print(); } catch (e) {} };
+      } else {
+        win.location.href = url;   // PDF وغيره: عارض المتصفح يتولى الطباعة
+      }
+      setTimeout(function () { URL.revokeObjectURL(url); }, 120000);
+    }).catch(function () { alert('تعذّر جلب هذا الملف للطباعة.'); });
+  }
+
+  /* ─────────────────── الرفع: 20 م.ب + ضغط + رسائل ─────────────────── */
+  function compressImage(file) {
+    if (String(file.type || '').indexOf('image/') !== 0) return Promise.resolve(null);
+    if (/gif/i.test(file.type)) return Promise.resolve(null);
+    if (file.size < 1.5 * 1048576) return Promise.resolve(null);
+    return readAsDataURL(file).then(function (original) {
+      return new Promise(function (resolve) {
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var maxDim = 2000;
+            var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+            var c = document.createElement('canvas');
+            c.width = Math.max(1, Math.round(img.width * scale));
+            c.height = Math.max(1, Math.round(img.height * scale));
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            var out = c.toDataURL('image/jpeg', 0.85);
+            resolve(out.length < original.length ? out : null);
+          } catch (e) { resolve(null); }
+        };
+        img.onerror = function () { resolve(null); };
+        img.src = original;
+      });
+    }).catch(function () { return null; });
+  }
+
+  function hint(text, cls) {
+    var h = document.getElementById('files-hint');
+    if (!h) {
+      var box = document.getElementById('files-add');
+      if (!box) return;
+      h = document.createElement('span');
+      h.id = 'files-hint';
+      box.appendChild(h);
+    }
+    h.className = 'files-hint' + (cls ? ' ' + cls : '');
+    h.textContent = text;
+  }
+
+  function persist(a) {
+    try {
+      var fin = G('finishAddFiles', null);
+      if (typeof fin === 'function') { fin(a); return; }
+      var save = G('saveAppointments', null);
+      if (typeof save === 'function') save(G('appointments', []));
+      var rl = G('renderFilesList', null);
+      if (typeof rl === 'function') rl(a);
+      var r = G('render', null);
+      if (typeof r === 'function') r();
+    } catch (e) { console.warn('[attachments-fix] persist', e); }
+  }
+
+  function addFilesFixed() {
+    var input = document.getElementById('files-input');
+    if (!input || !input.files || input.files.length === 0) { alert('اختر ملفاً أولاً'); return; }
+    var a = currentAppointment();
+    if (!a) { alert('أعد فتح نافذة المرفقات ثم حاول مجددًا.'); return; }
+    a.files = a.files || [];
+
+    var list = Array.prototype.slice.call(input.files);
+    var btn = document.querySelector('#files-add .action-btn');
+    var limit = LIMIT_MB * 1048576;
+    var added = 0, failed = 0, firstErr = '', idx = 0;
+
+    if (btn) btn.disabled = true;
+
+    function next() {
+      if (idx >= list.length) {
+        if (btn) btn.disabled = false;
+        input.value = '';
+        if (added) hint('✅ تمت إضافة ' + added + ' مرفق' + (failed ? ' — وتعذّر ' + failed : ''), 'done');
+        else hint('⚠️ لم تتم إضافة أي مرفق — ' + (firstErr || 'راجع الرسائل'), 'err');
+        persist(a);
+        return;
+      }
+      var file = list[idx++];
+      hint('⏳ (' + idx + '/' + list.length + ') ' + file.name, 'busy');
+
+      if (file.size > limit) {
+        firstErr = 'الملف يتجاوز ' + LIMIT_MB + ' ميجابايت.';
+        alert('الملف «' + file.name + '» حجمه ' + humanSize(file.size) +
+          '، ويتجاوز الحد المسموح ' + LIMIT_MB + ' ميجابايت.');
+        failed++; setTimeout(next, 10); return;
+      }
+
+      readAsDataURL(file).then(function (dataUrl) {
+        var big = file.size > 1.5 * 1048576;
+        return (big ? compressImage(file) : Promise.resolve(null)).then(function (smaller) {
+          var useData = smaller || dataUrl;
+          var type = smaller ? 'image/jpeg' : (file.type || '');
+          var extM = (file.name || '').match(/\.[A-Za-z0-9]{1,6}$/);
+          var path = 'files/' + a.id + '/' + Date.now() + '-' +
+            Math.random().toString(36).slice(2, 8) + (extM ? extM[0] : '');
+          var token = G('GH_TOKEN', '') || localStorage.getItem('gh_token') || '';
+
+          // 1) المسار الصحيح: رفع الملف إلى التخزين (GitHub) إن توفّر رمز وصول
+          var upload = token
+            ? ghPutFile(path, String(useData).split(',')[1] || '', 'مرفق: ' + (file.name || 'ملف'))
+                .then(function () {
+                  CACHE[path] = useData;
+                  return { name: file.name, type: type, size: Math.round(useData.length * 0.75), path: path };
+                })
+            : Promise.reject(new Error('no-token'));
+
+          return upload.catch(function () {
+            // 2) عند تعذّر الرفع: لا نُحقن ملفًا كبيرًا في قاعدة البيانات (كان يُبطئ النظام ويكسر الحفظ للجميع)
+            if ((useData.length / 1048576) > INLINE_MAX_MB) {
+              firstErr = 'تعذّر الرفع إلى التخزين، والملف أكبر من الحد الآمن للحفظ داخل قاعدة البيانات.';
+              alert('تعذّر رفع «' + file.name + '» إلى التخزين، وحجمه أكبر من الحد الآمن للحفظ داخل قاعدة البيانات.\n' +
+                'لم يُضف الملف لتجنّب إبطاء النظام وتعطيل الحفظ للجميع.\n' +
+                'الحل: أضف رمز وصول GitHub من شاشة الاتصال ثم أعد المحاولة.');
+              failed++;
+              return null;
+            }
+            return { name: file.name, type: type, size: Math.round(useData.length * 0.75), data: useData };
+          });
+        });
+      }).then(function (saved) {
+        if (saved) { a.files.push(saved); added++; }
+      }).catch(function (e) {
+        console.warn('[attachments-fix] add', e);
+        firstErr = 'تعذّر قراءة أحد الملفات.';
+        failed++;
+      }).then(function () { setTimeout(next, 10); });
+    }
+
+    next();
+  }
+
+  /* ───────────── قائمة المرفقات: الحجم + المصدر ───────────── */
+  function renderFilesListFixed(a) {
+    var list = document.getElementById('files-list');
+    if (!list) return;
+    var files = (a && a.files) || [];
+    if (!files.length) { list.innerHTML = '<div class="files-empty">لا توجد مرفقات</div>'; return; }
+    var editable = false;
+    try { var c = G('canEditFiles', null); editable = typeof c === 'function' ? !!c() : false; } catch (e) {}
+
+    list.innerHTML = files.map(function (f, i) {
+      var tag = [];
+      if (f.size) tag.push(humanSize(f.size));
+      if (f.path) tag.push('مرفوع');
+      else if (f.data) tag.push('داخل القاعدة');
+      var tagHtml = tag.length ? ' <span class="file-tag">(' + tag.join(' · ') + ')</span>' : '';
+      return '<div class="file-row">' +
+        '<span class="file-name">📄 ' + esc(f.name) + tagHtml + '</span>' +
+        '<span class="file-actions">' +
+          '<button class="row-btn" title="معاينة" onclick="previewFile(' + i + ')">👁️</button>' +
+          '<button class="row-btn" title="طباعة" onclick="printFile(' + i + ')">🖨️</button>' +
+          (editable ? '<button class="row-btn" title="حذف" onclick="removeFile(' + i + ')">🗑️</button>' : '') +
+        '</span></div>';
+    }).join('');
+  }
+
+  /* ─────────────────────── التركيب بلا مساس بالكود ─────────────────────── */
+  window.previewFile = previewFileFixed;
+  window.printFile = printFileFixed;
+  window.addFiles = addFilesFixed;
+  window.renderFilesList = renderFilesListFixed;
+  window.pvClose = closePv;
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      var ov = document.getElementById('pv-overlay');
+      if (ov && ov.classList.contains('open')) closePv();
+    }
+  });
+
+  // عند فتح نافذة المرفقات: إظهار الحد المسموح
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('[onclick*="openFiles"]')) setTimeout(function () { hint('الحد لكل مرفق: ' + LIMIT_MB + ' ميجابايت'); }, 60);
+  }, true);
+
+  console.log('[attachments-fix] v2 — معاينة داخلية + حد ' + LIMIT_MB + ' ميجابايت');
+})();
+</script>
+
 </body>
 </html>

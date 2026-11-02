@@ -4475,5 +4475,164 @@ ${doc.innerHTML}
 })();
 </script>
 
+<!--
+  ══════════════════════════════════════════════════════════════════════════════
+  حالة الطلب — إضافة خيار «أخرى» + صندوق كتابة يدوي (✍️)
+  إضافة فقط: لا تحذف ولا تعدّل أي سطر قائم، والتراجع بحذف هذه الكتلة.
+  ══════════════════════════════════════════════════════════════════════════════
+-->
+<style>
+  .st-custom-wrap { display: none; margin-top: 8px; }
+  .st-custom-wrap.open { display: block; }
+  .st-custom-row { display: flex; gap: 8px; align-items: flex-start; }
+  .st-custom-row textarea {
+    flex: 1; min-height: 62px; resize: vertical; font: inherit; font-size: 14px;
+    padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line, #2f4a3d);
+    background: rgba(255, 255, 255, .06); color: inherit; line-height: 1.8;
+  }
+  .st-custom-row textarea:focus { outline: 2px solid #5fd3a0; outline-offset: 1px; }
+  .st-custom-ico { font-size: 18px; line-height: 1.4; }
+  .st-custom-hint { font-size: 11.5px; color: var(--muted, #9cb8ac); margin-top: 4px; }
+  .st-write-btn {
+    border: 1px solid rgba(95, 211, 160, .5); background: rgba(95, 211, 160, .12);
+    color: inherit; border-radius: 9px; padding: 7px 11px; font: inherit; font-size: 12.5px;
+    cursor: pointer; white-space: nowrap;
+  }
+  .st-write-btn:hover { background: rgba(95, 211, 160, .22); }
+  .st-inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+</style>
+
+<script>
+(function () {
+  'use strict';
+
+  var OTHER = 'أخرى';
+
+  function boot() {
+    var input = document.getElementById('status');
+    var list = document.getElementById('status-list');
+    if (!input || !list) return;
+
+    /* 1) إضافة الخيار «أخرى» إلى قائمة الحالات */
+    var exists = Array.prototype.some.call(list.options, function (o) {
+      return (o.value || '').trim() === OTHER;
+    });
+    if (!exists) {
+      var opt = document.createElement('option');
+      opt.value = OTHER;
+      opt.label = 'أخرى — كتابة يدوية ✍️';
+      list.appendChild(opt);
+    }
+
+    /* 2) زر ✍️ للكتابة + صندوق نص حر */
+    var wrap = document.createElement('div');
+    wrap.className = 'st-custom-wrap';
+    wrap.id = 'st-custom-wrap';
+    wrap.innerHTML =
+      '<div class="st-custom-row">' +
+        '<span class="st-custom-ico">✍️</span>' +
+        '<textarea id="st-custom-text" placeholder="اكتب حالة الطلب كما تريد" maxlength="300"></textarea>' +
+      '</div>' +
+      '<div class="st-custom-hint">تُحفظ الحالة المكتوبة هنا مكان الخيار «أخرى» عند الحفظ.</div>';
+
+    input.insertAdjacentElement('afterend', wrap);
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'st-write-btn';
+    btn.id = 'st-write-btn';
+    btn.textContent = '✍️ أخرى';
+    btn.title = 'كتابة حالة غير موجودة في القائمة';
+    input.insertAdjacentElement('afterend', btn);
+
+    var ta = document.getElementById('st-custom-text');
+
+    function showCustom(focus) {
+      wrap.classList.add('open');
+      if (focus !== false) setTimeout(function () { ta.focus(); }, 30);
+    }
+    function hideCustom() {
+      wrap.classList.remove('open');
+      ta.value = '';
+    }
+    function isOther(v) {
+      var s = String(v || '').trim();
+      return s === OTHER || s === 'اخرى' || s === 'أخري';
+    }
+
+    /* اختيار «أخرى» من القائمة → يفتح الكتابة */
+    function syncFromSelect() {
+      if (isOther(input.value)) {
+        showCustom();
+      } else {
+        hideCustom();
+      }
+    }
+    input.addEventListener('input', syncFromSelect);
+    input.addEventListener('change', syncFromSelect);
+
+    /* زر الكتابة اليدوية */
+    btn.addEventListener('click', function () {
+      input.value = '';
+      showCustom();
+    });
+
+    /* Enter في صندوق الكتابة = حفظ */
+    ta.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        var sb = document.getElementById('submit-btn');
+        if (sb) sb.click();
+      }
+    });
+
+    /* 3) عند الحفظ: القيمة المكتوبة تحل مكان «أخرى» */
+    var original = window.saveStatusOnlyForm;
+    if (typeof original === 'function') {
+      window.saveStatusOnlyForm = function () {
+        try {
+          var custom = String(ta.value || '').trim();
+          if (wrap.classList.contains('open') && custom) {
+            input.value = custom;          // يُحفظ النص الحر
+          } else if (isOther(input.value) && !custom) {
+            alert('اكتب حالة الطلب أولًا، أو اختر حالة من القائمة.');
+            ta.focus();
+            return;
+          }
+        } catch (e) { console.warn('[status-other]', e); }
+        return original.apply(this, arguments);
+      };
+    }
+
+    /* 4) تصفير النموذج يُغلق صندوق الكتابة */
+    var origReset = window.resetForm;
+    if (typeof origReset === 'function') {
+      window.resetForm = function () {
+        try { hideCustom(); } catch (e) {}
+        return origReset.apply(this, arguments);
+      };
+    }
+
+    /* 5) عند فتح نافذة الحالة: تركيز على الحقل مباشرةً */
+    var origOpen = window.openStatusForm;
+    if (typeof origOpen === 'function') {
+      window.openStatusForm = function () {
+        var r = origOpen.apply(this, arguments);
+        try { hideCustom(); setTimeout(function () { input.focus(); }, 80); } catch (e) {}
+        return r;
+      };
+    }
+
+    console.log('[status-other] جاهز — خيار «أخرى» + كتابة يدوية');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(boot, 80); });
+  } else {
+    setTimeout(boot, 80);
+  }
+})();
+</script>
+
 </body>
 </html>
